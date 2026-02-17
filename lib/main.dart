@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'home_screen.dart';
+import 'screens/home_screen.dart';
 import 'providers/home_provider.dart';
+import 'providers/wfo_provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,17 +13,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Prewa - Presensi Wajah',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
-        useMaterial3: true,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => HomeProvider()),
+        ChangeNotifierProvider(create: (_) => WfoProvider()),
+      ],
+      child: MaterialApp(
+        title: 'Prewa - Presensi Wajah',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
+          useMaterial3: true,
+        ),
+        home: const HomeScreen(),
+        debugShowCheckedModeBanner: false,
       ),
-      home: ChangeNotifierProvider(
-        create: (context) => HomeProvider(),
-        child: const HomeScreen(),
-      ),
-      debugShowCheckedModeBanner: false,
     );
   }
 }

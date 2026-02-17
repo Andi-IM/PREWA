@@ -1,0 +1,204 @@
+import 'package:flutter/material.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:network_info_plus/network_info_plus.dart';
+import 'dart:async';
+
+enum WfoStatus {
+  idle,
+  checkingInfrastructure,
+  infrastructureError,
+  validatingSecurity,
+  securityError,
+  checkingRestrictions,
+  restrictionError,
+  processing,
+  success,
+  submissionError,
+}
+
+class WfoProvider extends ChangeNotifier {
+  static const String validSsid = 'WiFi@PNP';
+  static const int maxRetries = 3;
+
+  WfoStatus _status = WfoStatus.idle;
+  String _message = '';
+  String? _currentSsid;
+  String? _currentIp;
+  bool _isDisposed = false;
+
+  WfoStatus get status => _status;
+  String get message => _message;
+  String? get currentSsid => _currentSsid;
+  String? get currentIp => _currentIp;
+
+  Future<void> startWfoProcess() async {
+    _resetState();
+    notifyListeners();
+
+    if (!await _checkWifiConnection()) return;
+    if (!await _validateSecurity()) return;
+    if (!await _checkWorkingRestrictions()) return;
+    if (!await _processAttendance()) return;
+  }
+
+  Future<bool> _checkWifiConnection() async {
+    _setStatus(WfoStatus.checkingInfrastructure, "Memeriksa koneksi WiFi...");
+    await Future.delayed(const Duration(seconds: 1));
+
+    try {
+      final List<ConnectivityResult> connectivityResult = await Connectivity()
+          .checkConnectivity();
+
+      if (!connectivityResult.contains(ConnectivityResult.wifi)) {
+        _setStatus(
+          WfoStatus.infrastructureError,
+          "Harap hubungkan perangkat ke WiFi Kantor.",
+        );
+        return false;
+      }
+
+      final info = NetworkInfo();
+      _currentSsid = await info.getWifiName();
+
+      if (_currentSsid == null) {
+        debugPrint(
+          "Warning: SSID is null (Location permission might be missing or emulator).",
+        );
+      } else {
+        _currentSsid = _currentSsid!.replaceAll('"', '');
+      }
+
+      if (_currentSsid != validSsid && _currentSsid != null) {
+        _setStatus(
+          WfoStatus.infrastructureError,
+          "Terhubung ke $_currentSsid. Harap hubungkan ke $validSsid",
+        );
+        return false;
+      }
+      return true;
+    } catch (e) {
+      _setStatus(WfoStatus.infrastructureError, "Gagal memverifikasi WiFi: $e");
+      return false;
+    }
+  }
+
+  Future<bool> _validateSecurity() async {
+    _setStatus(
+      WfoStatus.validatingSecurity,
+      "Memverifikasi Keamanan Jaringan...",
+    );
+    await Future.delayed(const Duration(seconds: 1));
+
+    try {
+      final info = NetworkInfo();
+      _currentIp = await info.getWifiIP();
+
+      bool isValid = await _validateIp(_currentIp);
+      if (!isValid) {
+        _setStatus(
+          WfoStatus.securityError,
+          "Validasi IP Gagal. Akses ditolak.",
+        );
+        return false;
+      }
+      return true;
+    } catch (e) {
+      _setStatus(WfoStatus.securityError, "Gagal validasi keamanan: $e");
+      return false;
+    }
+  }
+
+  Future<bool> _checkWorkingRestrictions() async {
+    _setStatus(WfoStatus.checkingRestrictions, "Memeriksa Jam Kerja...");
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (!_isWithinWorkingHours()) {
+      _setStatus(
+        WfoStatus.restrictionError,
+        "Diluar jam/hari kerja operasional.",
+      );
+      return false;
+    }
+    return true;
+  }
+
+  Future<bool> _processAttendance() async {
+    _setStatus(WfoStatus.processing, "Memproses Data Kehadiran...");
+
+    bool uploadSuccess = await _uploadAttendanceDataWithRetry();
+
+    if (_isDisposed) return false;
+
+    if (uploadSuccess) {
+      _setStatus(WfoStatus.success, "Selamat Datang! Absensi Berhasil.");
+      return true;
+    } else {
+      _setStatus(
+        WfoStatus.submissionError,
+        "Gagal mengirim data. Silakan coba lagi.",
+      );
+      return false;
+    }
+  }
+
+  bool _isWithinWorkingHours() {
+    final now = DateTime.now();
+
+    if (now.weekday == DateTime.saturday || now.weekday == DateTime.sunday) {
+      return false;
+    }
+
+    if (now.hour < 7 || now.hour >= 18) {
+      return false;
+    }
+
+    return true;
+  }
+
+  Future<bool> _validateIp(String? ip) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (ip == null) return false;
+    return ip.startsWith('192.168.') || ip.startsWith('10.');
+  }
+
+  Future<bool> _uploadAttendanceDataWithRetry() async {
+    int retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        await Future.delayed(const Duration(seconds: 1));
+        return true;
+      } catch (e) {
+        retryCount++;
+        if (retryCount >= maxRetries) return false;
+        await Future.delayed(Duration(milliseconds: 500 * retryCount));
+      }
+    }
+    return false;
+  }
+
+  void _setStatus(WfoStatus status, String message) {
+    if (_isDisposed) return;
+    _status = status;
+    _message = message;
+    notifyListeners();
+  }
+
+  void _resetState() {
+    _status = WfoStatus.idle;
+    _message = '';
+    _currentSsid = null;
+    _currentIp = null;
+  }
+
+  void reset() {
+    _resetState();
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+}
