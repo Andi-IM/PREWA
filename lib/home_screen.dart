@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'providers/home_provider.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -17,16 +19,80 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 40),
+              // API Message Section
+              Consumer<HomeProvider>(
+                builder: (context, provider, child) {
+                  if (provider.apiMessage.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0,
+                      vertical: 10.0,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        provider.apiMessage,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                },
+              ),
+
               // Title Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Image.asset('assets/app_title.png', fit: BoxFit.contain),
+              GestureDetector(
+                onTap: () {
+                  context.read<HomeProvider>().handleTitleTap();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Image.asset(
+                    'assets/app_title.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+
+              // App Version
+              Consumer<HomeProvider>(
+                builder: (context, provider, child) {
+                  if (provider.appVersion.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      provider.appVersion,
+                      style: const TextStyle(
+                        fontFamily: 'Acme',
+                        fontSize: 16,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  );
+                },
               ),
 
               const Spacer(),
 
               // Logo
-              Image.asset('assets/logo-pnp.png', height: 180),
+              GestureDetector(
+                onTap: () {
+                  context.read<HomeProvider>().handleLogoTap();
+                },
+                child: Image.asset('assets/logo-pnp.png', height: 180),
+              ),
 
               const Spacer(),
 
@@ -82,7 +148,7 @@ class HomeScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 5,
               offset: const Offset(0, 3),
             ),
