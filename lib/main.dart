@@ -32,12 +32,26 @@ class MyApp extends StatelessWidget {
         ProxyProvider<AppConfigProvider, ApiService>(
           update: (_, config, _) => ApiService(config),
         ),
-        ProxyProvider2<StorageProvider, ApiService, LoginProvider>(
+        ChangeNotifierProxyProvider2<
+          StorageProvider,
+          ApiService,
+          LoginProvider
+        >(
+          create: (context) => LoginProvider(
+            context.read<StorageProvider>(),
+            context.read<ApiService>(),
+          ),
           update: (_, storage, api, _) => LoginProvider(storage, api),
         ),
-        ChangeNotifierProvider(create: (_) => HomeProvider()),
+        ChangeNotifierProxyProvider<ApiService, HomeProvider>(
+          create: (context) => HomeProvider(context.read<ApiService>()),
+          update: (_, api, _) => HomeProvider(api),
+        ),
         ChangeNotifierProvider(create: (_) => WfoProvider()),
-        ChangeNotifierProvider(create: (_) => WfaProvider()),
+        ChangeNotifierProxyProvider<ApiService, WfaProvider>(
+          create: (context) => WfaProvider(context.read<ApiService>()),
+          update: (_, api, _) => WfaProvider(api),
+        ),
         ChangeNotifierProvider(create: (_) => SampleRecordProvider()),
         ChangeNotifierProvider(create: (_) => PresensiProvider()),
         ChangeNotifierProvider(create: (_) => ResampleProvider()),

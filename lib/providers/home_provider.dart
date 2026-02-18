@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:async';
+import '../services/api_service.dart';
 
 class HomeProvider extends ChangeNotifier {
+  final ApiService _api;
+
   String _apiMessage = '';
   String _appVersion = '';
   Timer? _dismissTimer;
@@ -12,7 +14,7 @@ class HomeProvider extends ChangeNotifier {
   String get apiMessage => _apiMessage;
   String get appVersion => _appVersion;
 
-  HomeProvider();
+  HomeProvider(this._api);
 
   Future<void> handleTitleTap() async {
     if (_appVersion.isNotEmpty) {
@@ -38,7 +40,6 @@ class HomeProvider extends ChangeNotifier {
   }
 
   void handleLogoTap() async {
-    // If message is already visible, hide it immediately
     if (_apiMessage.isNotEmpty) {
       _apiMessage = '';
       _cancelDismissTimer();
@@ -46,16 +47,13 @@ class HomeProvider extends ChangeNotifier {
       return;
     }
 
-    // Show loading state
     _apiMessage = 'Checking connection...';
     notifyListeners();
 
     try {
-      final response = await http
-          .get(Uri.parse('https://prewa.pnp.ac.id/whoami.php'))
-          .timeout(const Duration(seconds: 5));
+      final response = await _api.whoami();
 
-      if (response.statusCode == 200) {
+      if (response.isSuccess) {
         _apiMessage = response.body;
       } else {
         _apiMessage = 'Error: ${response.statusCode}';
@@ -67,8 +65,6 @@ class HomeProvider extends ChangeNotifier {
     }
 
     notifyListeners();
-
-    // Auto dismiss after 2 seconds
     _startDismissTimer();
   }
 

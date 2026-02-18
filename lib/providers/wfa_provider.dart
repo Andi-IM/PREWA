@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'dart:async';
+import '../services/api_service.dart';
 
 enum WfaStatus { initial, loading, success, error }
 
 class WfaProvider extends ChangeNotifier {
+  final ApiService _api;
+
   WfaStatus _status = WfaStatus.initial;
   String _message = '';
+
+  WfaProvider(this._api);
 
   WfaStatus get status => _status;
   String get message => _message;
@@ -18,63 +21,42 @@ class WfaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await http
-          .post(
-            Uri.parse('https://prewa.pnp.ac.id/ping_global.php'),
-            body: {'get_status': 'ON'},
-          )
-          .timeout(const Duration(seconds: 2));
+      final response = await _api.ping();
 
-      if (response.statusCode == 200) {
-        if (response.body.isEmpty) {
+      if (response.isSuccess && response.hasData) {
+        final data = response.data!;
+
+        if (!data.containsKey('sts_akses')) {
           _status = WfaStatus.error;
           _message = "Maaf, akses Jaringan Invalid";
           notifyListeners();
           return false;
         }
 
-        try {
-          final data = json.decode(response.body);
-          // Response format: {"sts_akses":"OK","ip_client":"...","sts_kerja":"OK"}
+        final stsAkses = data['sts_akses'];
 
-          if (!data.containsKey('sts_akses')) {
-            _status = WfaStatus.error;
-            _message = "Maaf, akses Jaringan Invalid";
-            notifyListeners();
-            return false;
-          }
+        if (stsAkses == 'NO_WFA') {
+          _status = WfaStatus.error;
+          _message = "Maaf, Status WFA Non-Aktif";
+          notifyListeners();
+          return false;
+        }
 
-          final stsAkses = data['sts_akses'];
+        if (!data.containsKey('sts_kerja')) {
+          _status = WfaStatus.error;
+          _message = "Maaf, Bukan Hari Kerja";
+          notifyListeners();
+          return false;
+        }
 
-          if (stsAkses == 'NO_WFA') {
-            _status = WfaStatus.error;
-            _message = "Maaf, Status WFA Non-Aktif";
-            notifyListeners();
-            return false;
-          }
+        final stsKerja = data['sts_kerja'];
 
-          if (!data.containsKey('sts_kerja')) {
-            _status = WfaStatus.error;
-            _message = "Maaf, Bukan Hari Kerja";
-            notifyListeners();
-            return false;
-          }
-
-          final stsKerja = data['sts_kerja'];
-
-          if (stsAkses == 'OK' && stsKerja == 'OK') {
-            _status = WfaStatus.success;
-            _message = "Selamat Datang di \n PREWA PNP";
-            notifyListeners();
-            return true;
-          } else {
-            _status = WfaStatus.error;
-            _message = "Maaf, akses Jaringan Invalid";
-            notifyListeners();
-            return false;
-          }
-        } catch (e) {
-          // JSON parsing error or unexpected format
+        if (stsAkses == 'OK' && stsKerja == 'OK') {
+          _status = WfaStatus.success;
+          _message = "Selamat Datang di \n PREWA PNP";
+          notifyListeners();
+          return true;
+        } else {
           _status = WfaStatus.error;
           _message = "Maaf, akses Jaringan Invalid";
           notifyListeners();
@@ -82,8 +64,7 @@ class WfaProvider extends ChangeNotifier {
         }
       } else {
         _status = WfaStatus.error;
-        _message =
-            "Maaf, akses Jaringan Invalid"; // Server returned error code, treat as invalid network access
+        _message = "Maaf, akses Jaringan Invalid";
         notifyListeners();
         return false;
       }
@@ -94,7 +75,7 @@ class WfaProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _status = WfaStatus.error;
-      _message = "Maaf, \nKoneksi Bermasalah"; // Generic error
+      _message = "Maaf, \nKoneksi Bermasalah";
       notifyListeners();
       return false;
     }

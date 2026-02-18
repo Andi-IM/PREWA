@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'storage_provider.dart';
 import '../services/api_service.dart';
 
@@ -45,13 +43,13 @@ class LoginResult {
 
 class LoginProvider extends ChangeNotifier {
   final StorageProvider _storage;
-  final ApiService _apiService;
+  final ApiService _api;
 
   LoginStatus _status = LoginStatus.idle;
   String? _userId;
   String? _password;
 
-  LoginProvider(this._storage, this._apiService);
+  LoginProvider(this._storage, this._api);
 
   LoginStatus get status => _status;
   String? get userId => _userId ?? _storage.userId;
@@ -77,24 +75,18 @@ class LoginProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final loginUrl = _apiService.loginEndpoint;
-
       debugPrint('=== LOGIN REQUEST ===');
-      debugPrint('URL: $loginUrl');
+      debugPrint('URL: ${_api.baseUrl}${_api.loginEndpoint}');
       debugPrint('Payload: username=$username&password=****');
 
-      final response = await http.post(
-        Uri.parse(loginUrl),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: 'username=$username&password=$password',
-      );
+      final response = await _api.login(username: username, password: password);
 
       debugPrint('Response Status: ${response.statusCode}');
       debugPrint('Response Body: ${response.body}');
       debugPrint('====================');
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      if (response.isSuccess && response.hasData) {
+        final data = response.data!;
         final logData = Map<String, dynamic>.from(data);
         if (logData.containsKey('token')) {
           logData['token'] = '****';
@@ -144,7 +136,7 @@ class LoginProvider extends ChangeNotifier {
             'Login Gagal.\nPeriksa Username dan Password Anda.',
           );
         }
-      } else if (response.statusCode == 403) {
+      } else if (response.isForbidden) {
         _status = LoginStatus.error;
         notifyListeners();
         return LoginResult.error('Maaf,\nAkses Jaringan Invalid');
