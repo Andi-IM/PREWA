@@ -15,4 +15,10 @@ class ApiEndpoints {
   static const String ping = '/ping.php';
   static const String pingGlobal = '/ping_global.php';
   static const String whoami = '/whoami.php';
+
+  // Sample Record Endpoints
+  static const String uploadFoto = '/upload_foto.php';
+  static const String uploadFotoGlobal = '/upload_foto_global.php';
+  static const String processTrain = '/process_train.php';
+  static const String processTrainGlobal = '/process_train_global.php';
 }
