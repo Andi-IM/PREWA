@@ -136,18 +136,20 @@ class _LoginScreenState extends State<LoginScreen> {
           const Text(
             'Silakan Login Ke',
             style: TextStyle(
+              fontFamily: 'OpenSans',
               color: Color(0xFF800000),
               fontSize: 22,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 8),
           const Text(
-            'P R E W A',
+            'PREWA',
             style: TextStyle(
+              fontFamily: 'OpenSans',
               color: Color(0xFF800000),
               fontSize: 28,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               letterSpacing: 4,
             ),
           ),
@@ -224,6 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Text(
           label,
           style: const TextStyle(
+            fontFamily: 'OpenSans',
             color: Color(0xFF1A237E),
             fontSize: 20,
             fontStyle: FontStyle.italic,
@@ -234,6 +237,11 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: controller,
           obscureText: obscureText,
           enabled: enabled,
+          style: const TextStyle(
+            fontFamily: 'OpenSans',
+            fontWeight: FontWeight.w500,
+            fontSize: 18,
+          ),
           decoration: const InputDecoration(
             isDense: true,
             contentPadding: EdgeInsets.symmetric(vertical: 8),

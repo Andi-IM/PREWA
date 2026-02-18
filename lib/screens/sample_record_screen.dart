@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/sample_record_provider.dart';
+import '../providers/storage_provider.dart';
 
 class SampleRecordScreen extends StatelessWidget {
   const SampleRecordScreen({super.key});
@@ -65,6 +66,19 @@ class SampleRecordScreen extends StatelessWidget {
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 60),
+
+                                Text(
+                                  'Halo, ${context.watch<StorageProvider>().namaUser ?? 'User'}',
+                                  style: const TextStyle(
+                                    fontFamily: 'Acme',
+                                    fontSize: 20,
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 10),
+
                                 const Text(
                                   'Anda belum merekam\nData Sampel Wajah',
                                   style: TextStyle(

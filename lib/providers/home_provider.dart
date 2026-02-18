@@ -4,23 +4,34 @@ import 'dart:async';
 import '../services/api_service.dart';
 
 class HomeProvider extends ChangeNotifier {
-  final ApiService _api;
+  ApiService _api;
 
   String _apiMessage = '';
   String _appVersion = '';
   Timer? _dismissTimer;
   Timer? _versionDismissTimer;
+  bool _isDisposed = false;
 
   String get apiMessage => _apiMessage;
   String get appVersion => _appVersion;
 
   HomeProvider(this._api);
 
+  void update(ApiService api) {
+    _api = api;
+  }
+
+  void _safeNotifyListeners() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+  }
+
   Future<void> handleTitleTap() async {
     if (_appVersion.isNotEmpty) {
       _appVersion = '';
       _versionDismissTimer?.cancel();
-      notifyListeners();
+      _safeNotifyListeners();
       return;
     }
 
@@ -35,7 +46,7 @@ class HomeProvider extends ChangeNotifier {
     _versionDismissTimer?.cancel();
     _versionDismissTimer = Timer(const Duration(seconds: 2), () {
       _appVersion = '';
-      notifyListeners();
+      _safeNotifyListeners();
     });
   }
 
@@ -43,7 +54,7 @@ class HomeProvider extends ChangeNotifier {
     if (_apiMessage.isNotEmpty) {
       _apiMessage = '';
       _cancelDismissTimer();
-      notifyListeners();
+      _safeNotifyListeners();
       return;
     }
 
@@ -72,7 +83,7 @@ class HomeProvider extends ChangeNotifier {
     _cancelDismissTimer();
     _dismissTimer = Timer(const Duration(seconds: 2), () {
       _apiMessage = '';
-      notifyListeners();
+      _safeNotifyListeners();
     });
   }
 
@@ -83,6 +94,7 @@ class HomeProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true;
     _cancelDismissTimer();
     _versionDismissTimer?.cancel();
     super.dispose();

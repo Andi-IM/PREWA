@@ -43,12 +43,13 @@ class LoginResult {
 }
 
 class LoginProvider extends ChangeNotifier {
-  final StorageProvider _storage;
-  final ApiService _api;
+  StorageProvider _storage;
+  ApiService _api;
 
   LoginStatus _status = LoginStatus.idle;
   String? _userId;
   String? _password;
+  bool _isDisposed = false;
 
   LoginProvider(this._storage, this._api);
 
@@ -56,15 +57,26 @@ class LoginProvider extends ChangeNotifier {
   String? get userId => _userId ?? _storage.userId;
   String? get password => _password ?? _storage.password;
 
+  void update(StorageProvider storage, ApiService api) {
+    _storage = storage;
+    _api = api;
+  }
+
+  void _safeNotifyListeners() {
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+  }
+
   void setCredentials(String userId, String password) {
     _userId = userId;
     _password = password;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void reset() {
     _status = LoginStatus.idle;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   Future<LoginResult> login(String username, String password) async {
@@ -73,7 +85,7 @@ class LoginProvider extends ChangeNotifier {
     }
 
     _status = LoginStatus.loading;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       debugPrint('=== LOGIN REQUEST ===');
@@ -83,7 +95,6 @@ class LoginProvider extends ChangeNotifier {
       final response = await _api.login(username: username, password: password);
 
       debugPrint('Response Status: ${response.statusCode}');
-      debugPrint('Response Body: ${response.body}');
       debugPrint('====================');
 
       if (response.isSuccess && response.loginResponse != null) {
@@ -104,7 +115,7 @@ class LoginProvider extends ChangeNotifier {
           );
 
           _status = LoginStatus.success;
-          notifyListeners();
+          _safeNotifyListeners();
 
           return LoginResult.success(
             target: target,
@@ -113,18 +124,18 @@ class LoginProvider extends ChangeNotifier {
           );
         } else {
           _status = LoginStatus.error;
-          notifyListeners();
+          _safeNotifyListeners();
           return LoginResult.error(
             'Login Gagal.\nPeriksa Username dan Password Anda.',
           );
         }
       } else if (response.isForbidden) {
         _status = LoginStatus.error;
-        notifyListeners();
+        _safeNotifyListeners();
         return LoginResult.error('Maaf,\nAkses Jaringan Invalid');
       } else {
         _status = LoginStatus.error;
-        notifyListeners();
+        _safeNotifyListeners();
         return LoginResult.error('Maaf,\nKoneksi Server bermasalah.');
       }
     } catch (e) {
@@ -132,7 +143,7 @@ class LoginProvider extends ChangeNotifier {
       debugPrint('Error: $e');
       debugPrint('===================');
       _status = LoginStatus.error;
-      notifyListeners();
+      _safeNotifyListeners();
       return LoginResult.error('Maaf,\nKoneksi Server bermasalah.');
     }
   }
@@ -147,5 +158,11 @@ class LoginProvider extends ChangeNotifier {
       default:
         return LoginNavigationTarget.resample;
     }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 }

@@ -17,6 +17,7 @@ class _WfoScreenState extends State<WfoScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AppConfigProvider>().setMode(AppMode.wfo);
       context.read<WfoProvider>().startWfoProcess();
     });
   }
@@ -65,7 +66,6 @@ class _WfoScreenState extends State<WfoScreen> {
                   builder: (context, provider, child) {
                     if (provider.status == WfoStatus.redirectToLogin) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        context.read<AppConfigProvider>().setMode(AppMode.wfo);
                         context.pushReplacement('/login');
                       });
                     }

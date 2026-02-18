@@ -22,13 +22,15 @@ class _WfaScreenState extends State<WfaScreen> {
   }
 
   Future<void> _checkConnection() async {
+    // Set mode early to ensure ApiService uses correct endpoints
+    context.read<AppConfigProvider>().setMode(AppMode.wfa);
+
     final provider = context.read<WfaProvider>();
     final success = await provider.checkConnection();
 
     if (success && mounted) {
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
-        context.read<AppConfigProvider>().setMode(AppMode.wfa);
         context.pushReplacement('/login');
       }
     }

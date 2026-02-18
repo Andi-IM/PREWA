@@ -107,7 +107,7 @@ class ApiService {
 
   Future<ApiResponse> ping({Duration? timeout}) async {
     return post(
-      ApiEndpoints.pingGlobal,
+      pingEndpoint,
       body: {'get_status': 'ON'},
       timeout: timeout ?? ApiConfig.shortTimeout,
     );
