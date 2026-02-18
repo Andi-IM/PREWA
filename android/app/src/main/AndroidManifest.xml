@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="prewa"
+        android:label="PREWA (FLUTTER)"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

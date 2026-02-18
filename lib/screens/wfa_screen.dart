@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/wfa_provider.dart';
 import '../providers/app_config_provider.dart';
-import '../models/app_mode.dart';
 
 class WfaScreen extends StatefulWidget {
   const WfaScreen({super.key});
@@ -23,7 +22,7 @@ class _WfaScreenState extends State<WfaScreen> {
 
   Future<void> _checkConnection() async {
     // Set mode early to ensure ApiService uses correct endpoints
-    context.read<AppConfigProvider>().setMode(AppMode.wfa);
+    context.read<AppConfigProvider>().setWfa(true);
 
     final provider = context.read<WfaProvider>();
     final success = await provider.checkConnection();

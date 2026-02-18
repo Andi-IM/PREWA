@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "895406692407",
+    "project_id": "prewa-b909a",
+    "storage_bucket": "prewa-b909a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:895406692407:android:b4d988215abacfcd3107b2",
+        "android_client_info": {
+          "package_name": "com.example.prewa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUXWT-C2f-Bm-HuELUHFTiD0ifIPk6CeY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

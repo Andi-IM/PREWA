@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/app_mode.dart';
 
 class AppConfigProvider extends ChangeNotifier {
-  AppMode _mode = AppMode.wfo;
+  bool _isWfa = false;
 
-  AppMode get mode => _mode;
+  bool get isWfa => _isWfa;
 
-  void setMode(AppMode mode) {
-    _mode = mode;
+  void setWfa(bool value) {
+    _isWfa = value;
     notifyListeners();
   }
-
-  bool get isWfa => _mode == AppMode.wfa;
-  bool get isWfo => _mode == AppMode.wfo;
 }
