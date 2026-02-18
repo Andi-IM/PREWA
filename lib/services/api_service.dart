@@ -2,6 +2,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/api_config.dart';
 import '../providers/app_config_provider.dart';
+import '../models/login_response.dart';
+import '../models/ping_response.dart';
 
 class ApiResponse {
   final int statusCode;
@@ -13,6 +15,12 @@ class ApiResponse {
   bool get isSuccess => statusCode == 200;
   bool get isForbidden => statusCode == 403;
   bool get hasData => data != null;
+
+  LoginResponse? get loginResponse =>
+      hasData ? LoginResponse.fromJson(data!) : null;
+
+  PingResponse? get pingResponse =>
+      hasData ? PingResponse.fromJson(data!) : null;
 }
 
 class ApiService {

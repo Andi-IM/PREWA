@@ -23,35 +23,24 @@ class WfaProvider extends ChangeNotifier {
     try {
       final response = await _api.ping();
 
-      if (response.isSuccess && response.hasData) {
-        final data = response.data!;
+      if (response.isSuccess && response.pingResponse != null) {
+        final pingResponse = response.pingResponse!;
 
-        if (!data.containsKey('sts_akses')) {
-          _status = WfaStatus.error;
-          _message = "Maaf, akses Jaringan Invalid";
-          notifyListeners();
-          return false;
-        }
-
-        final stsAkses = data['sts_akses'];
-
-        if (stsAkses == 'NO_WFA') {
+        if (pingResponse.isWfaDisabled) {
           _status = WfaStatus.error;
           _message = "Maaf, Status WFA Non-Aktif";
           notifyListeners();
           return false;
         }
 
-        if (!data.containsKey('sts_kerja')) {
+        if (pingResponse.isNotWorkingDay) {
           _status = WfaStatus.error;
           _message = "Maaf, Bukan Hari Kerja";
           notifyListeners();
           return false;
         }
 
-        final stsKerja = data['sts_kerja'];
-
-        if (stsAkses == 'OK' && stsKerja == 'OK') {
+        if (pingResponse.isValid) {
           _status = WfaStatus.success;
           _message = "Selamat Datang di \n PREWA PNP";
           notifyListeners();

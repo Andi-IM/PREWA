@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'storage_provider.dart';
 import '../services/api_service.dart';
+import '../models/login_response.dart';
 
 enum LoginStatus { idle, loading, success, error }
 
@@ -85,49 +86,30 @@ class LoginProvider extends ChangeNotifier {
       debugPrint('Response Body: ${response.body}');
       debugPrint('====================');
 
-      if (response.isSuccess && response.hasData) {
-        final data = response.data!;
-        final logData = Map<String, dynamic>.from(data);
-        if (logData.containsKey('token')) {
-          logData['token'] = '****';
-        }
-        debugPrint('Parsed Data: $logData');
+      if (response.isSuccess && response.loginResponse != null) {
+        final loginResponse = response.loginResponse!;
 
-        if (data['status'] == 'OK') {
+        debugPrint('Parsed Data: ${loginResponse.toLogMap()}');
+
+        if (loginResponse.isSuccess) {
           await _storage.saveCredentials(userId: username, password: password);
-          await _storage.saveToken(data['token'] ?? '');
+          await _storage.saveToken(loginResponse.token ?? '');
           await _storage.saveUserData(
-            namaUser: data['nama_user'] ?? '',
-            sampleId: data['sample_id']?.toString() ?? '',
+            namaUser: loginResponse.namaUser ?? '',
+            sampleId: loginResponse.sampleId ?? '',
           );
 
-          final statusTraining = data['status_training'];
-          final ceklok = data['ceklok']?.toString();
-          final tglKerja = data['tgl_kerja']?.toString();
-
-          int? statusTrainingInt;
-          if (statusTraining is int) {
-            statusTrainingInt = statusTraining;
-          } else if (statusTraining is String) {
-            statusTrainingInt = int.tryParse(statusTraining);
-          }
-
-          LoginNavigationTarget target;
-          if (statusTrainingInt == 0) {
-            target = LoginNavigationTarget.sampleRecord;
-          } else if (statusTrainingInt == 1) {
-            target = LoginNavigationTarget.presensi;
-          } else {
-            target = LoginNavigationTarget.resample;
-          }
+          final target = _mapTrainingStatusToTarget(
+            loginResponse.trainingStatus,
+          );
 
           _status = LoginStatus.success;
           notifyListeners();
 
           return LoginResult.success(
             target: target,
-            ceklok: ceklok,
-            tglKerja: tglKerja,
+            ceklok: loginResponse.ceklok,
+            tglKerja: loginResponse.tglKerja,
           );
         } else {
           _status = LoginStatus.error;
@@ -152,6 +134,18 @@ class LoginProvider extends ChangeNotifier {
       _status = LoginStatus.error;
       notifyListeners();
       return LoginResult.error('Maaf,\nKoneksi Server bermasalah.');
+    }
+  }
+
+  LoginNavigationTarget _mapTrainingStatusToTarget(TrainingStatus? status) {
+    switch (status) {
+      case TrainingStatus.notTrained:
+        return LoginNavigationTarget.sampleRecord;
+      case TrainingStatus.trained:
+        return LoginNavigationTarget.presensi;
+      case TrainingStatus.resampleRequired:
+      default:
+        return LoginNavigationTarget.resample;
     }
   }
 }
