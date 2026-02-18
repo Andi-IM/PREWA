@@ -97,7 +97,7 @@ class PresensiScreen extends StatelessWidget {
                 const SizedBox(height: 15),
                 // Using orange_bar as per user requested change earlier
                 _buildCustomButton('Keluar', 'assets/orange_bar.png', () {
-                  context.pop();
+                  context.go('/');
                 }, textColor: Colors.white),
 
                 const SizedBox(height: 40),

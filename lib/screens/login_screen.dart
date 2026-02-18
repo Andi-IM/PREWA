@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../providers/storage_provider.dart';
+import '../providers/login_provider.dart';
 import '../providers/app_config_provider.dart';
-import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,13 +21,13 @@ class _LoginScreenState extends State<LoginScreen> {
     _loadCredentials();
   }
 
-  Future<void> _loadCredentials() async {
-    final storage = context.read<StorageProvider>();
-    if (storage.userId != null) {
-      _usernameController.text = storage.userId!;
+  void _loadCredentials() {
+    final provider = context.read<LoginProvider>();
+    if (provider.userId != null) {
+      _usernameController.text = provider.userId!;
     }
-    if (storage.password != null) {
-      _passwordController.text = storage.password!;
+    if (provider.password != null) {
+      _passwordController.text = provider.password!;
     }
   }
 
@@ -38,114 +35,51 @@ class _LoginScreenState extends State<LoginScreen> {
     final username = _usernameController.text;
     final password = _passwordController.text;
 
-    if (username.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Username dan Password harus diisi')),
-      );
-      return;
+    final result = await context.read<LoginProvider>().login(
+      username,
+      password,
+    );
+
+    if (!mounted) return;
+
+    if (result.status == LoginStatus.success) {
+      _navigateToTarget(result);
+    } else if (result.status == LoginStatus.error &&
+        result.errorMessage != null) {
+      _showError(result.errorMessage!);
     }
+  }
 
-    try {
-      final storage = context.read<StorageProvider>();
-      final apiService = context.read<ApiService>();
-      final loginUrl = apiService.loginEndpoint;
+  void _navigateToTarget(LoginResult result) {
+    final target = result.navigationTarget;
+    final extra = {'ceklok': result.ceklok, 'tgl_kerja': result.tglKerja};
 
-      debugPrint('=== LOGIN REQUEST ===');
-      debugPrint('URL: $loginUrl');
-      debugPrint('Payload: username=$username&password=****');
-
-      final response = await http.post(
-        Uri.parse(loginUrl),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: 'username=$username&password=$password',
-      );
-
-      debugPrint('Response Status: ${response.statusCode}');
-      debugPrint('Response Body: ${response.body}');
-      debugPrint('====================');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final logData = Map<String, dynamic>.from(data);
-        if (logData.containsKey('token')) {
-          logData['token'] = '****';
-        }
-        debugPrint('Parsed Data: $logData');
-
-        if (data['status'] == 'OK') {
-          // Point 3: Save user_id as username input, password as password input
-          await storage.saveCredentials(userId: username, password: password);
-          await storage.saveToken(data['token'] ?? '');
-          await storage.saveUserData(
-            namaUser: data['nama_user'] ?? '',
-            sampleId: data['sample_id']?.toString() ?? '',
-          );
-
-          if (mounted) {
-            final statusTraining = data['status_training'];
-            final ceklok = data['ceklok']?.toString();
-            final tglKerja = data['tgl_kerja']?.toString();
-
-            int? statusTrainingInt;
-            if (statusTraining is int) {
-              statusTrainingInt = statusTraining;
-            } else if (statusTraining is String) {
-              statusTrainingInt = int.tryParse(statusTraining);
-            }
-
-            if (statusTrainingInt == 0) {
-              context.go('/sample_record');
-            } else if (statusTrainingInt == 1) {
-              context.go(
-                '/presensi',
-                extra: {'ceklok': ceklok, 'tgl_kerja': tglKerja},
-              );
-            } else {
-              context.go(
-                '/resample',
-                extra: {'ceklok': ceklok, 'tgl_kerja': tglKerja},
-              );
-            }
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Login Gagal.\nPeriksa Username dan Password Anda.',
-                ),
-              ),
-            );
-          }
-        }
-      } else if (response.statusCode == 403) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Maaf,\nAkses Jaringan Invalid')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Maaf,\nKoneksi Server bermasalah.')),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('=== LOGIN ERROR ===');
-      debugPrint('Error: $e');
-      debugPrint('===================');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Maaf,\nKoneksi Server bermasalah.')),
-        );
-      }
+    switch (target) {
+      case LoginNavigationTarget.sampleRecord:
+        context.go('/sample_record');
+        break;
+      case LoginNavigationTarget.presensi:
+        context.go('/presensi', extra: extra);
+        break;
+      case LoginNavigationTarget.resample:
+        context.go('/resample', extra: extra);
+        break;
+      default:
+        break;
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final config = context.watch<AppConfigProvider>();
+    final loginProvider = context.watch<LoginProvider>();
+    final isLoading = loginProvider.status == LoginStatus.loading;
     final modeTitle = config.isWfa ? '(Global)' : '(Internal)';
 
     return Scaffold(
@@ -167,87 +101,11 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 60),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(32.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Silakan Login Ke',
-                          style: TextStyle(
-                            color: Color(0xFF800000),
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'P R E W A',
-                          style: TextStyle(
-                            color: Color(0xFF800000),
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 4,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          modeTitle,
-                          style: const TextStyle(
-                            color: Color(0xFF1A237E),
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        _buildTextField(
-                          label: 'Username',
-                          controller: _usernameController,
-                        ),
-                        const SizedBox(height: 32),
-                        _buildTextField(
-                          label: 'Password',
-                          controller: _passwordController,
-                          obscureText: true,
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
+                  _buildLoginCard(modeTitle, isLoading),
                   const SizedBox(height: 48),
-                  _buildCustomButton(
-                    text: 'Masuk',
-                    assetPath: 'assets/green_bar.png',
-                    onPressed: _handleLogin,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildCustomButton(
-                    text: 'Keluar',
-                    assetPath: 'assets/orange_bar.png',
-                    onPressed: () {
-                      context.pop();
-                    },
-                  ),
+                  _buildButtons(isLoading),
                   const SizedBox(height: 40),
-                  const Text(
-                    'Your Bridge to the Future',
-                    style: TextStyle(
-                      fontFamily: 'Hurricane',
-                      fontSize: 24,
-                      color: Colors.black87,
-                    ),
-                  ),
+                  _buildFooter(),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -258,10 +116,107 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _buildLoginCard(String modeTitle, bool isLoading) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32.0),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Silakan Login Ke',
+            style: TextStyle(
+              color: Color(0xFF800000),
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'P R E W A',
+            style: TextStyle(
+              color: Color(0xFF800000),
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            modeTitle,
+            style: const TextStyle(
+              color: Color(0xFF1A237E),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 32),
+          _buildTextField(
+            label: 'Username',
+            controller: _usernameController,
+            enabled: !isLoading,
+          ),
+          const SizedBox(height: 32),
+          _buildTextField(
+            label: 'Password',
+            controller: _passwordController,
+            obscureText: true,
+            enabled: !isLoading,
+          ),
+          if (isLoading) ...[
+            const SizedBox(height: 24),
+            const CircularProgressIndicator(color: Colors.deepOrange),
+          ],
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildButtons(bool isLoading) {
+    return Column(
+      children: [
+        _buildCustomButton(
+          text: 'Masuk',
+          assetPath: 'assets/green_bar.png',
+          onPressed: isLoading ? null : _handleLogin,
+        ),
+        const SizedBox(height: 16),
+        _buildCustomButton(
+          text: 'Keluar',
+          assetPath: 'assets/orange_bar.png',
+          onPressed: isLoading ? null : () => context.go('/'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooter() {
+    return const Text(
+      'Your Bridge to the Future',
+      style: TextStyle(
+        fontFamily: 'Hurricane',
+        fontSize: 24,
+        color: Colors.black87,
+      ),
+    );
+  }
+
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
     bool obscureText = false,
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,6 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
         TextField(
           controller: controller,
           obscureText: obscureText,
+          enabled: enabled,
           decoration: const InputDecoration(
             isDense: true,
             contentPadding: EdgeInsets.symmetric(vertical: 8),
@@ -296,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildCustomButton({
     required String text,
     required String assetPath,
-    required VoidCallback onPressed,
+    VoidCallback? onPressed,
   }) {
     return GestureDetector(
       onTap: onPressed,
@@ -307,6 +263,9 @@ class _LoginScreenState extends State<LoginScreen> {
           image: DecorationImage(
             image: AssetImage(assetPath),
             fit: BoxFit.fill,
+            colorFilter: onPressed == null
+                ? ColorFilter.mode(Colors.grey, BlendMode.saturation)
+                : null,
           ),
           borderRadius: BorderRadius.circular(10),
           boxShadow: [

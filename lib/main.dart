@@ -8,6 +8,7 @@ import 'providers/presensi_provider.dart';
 import 'providers/resample_provider.dart';
 import 'providers/storage_provider.dart';
 import 'providers/app_config_provider.dart';
+import 'providers/login_provider.dart';
 import 'services/storage_service.dart';
 import 'services/api_service.dart';
 
@@ -29,7 +30,10 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => StorageProvider()),
         ChangeNotifierProvider(create: (_) => AppConfigProvider()),
         ProxyProvider<AppConfigProvider, ApiService>(
-          update: (_, config, __) => ApiService(config),
+          update: (_, config, _) => ApiService(config),
+        ),
+        ProxyProvider2<StorageProvider, ApiService, LoginProvider>(
+          update: (_, storage, api, _) => LoginProvider(storage, api),
         ),
         ChangeNotifierProvider(create: (_) => HomeProvider()),
         ChangeNotifierProvider(create: (_) => WfoProvider()),

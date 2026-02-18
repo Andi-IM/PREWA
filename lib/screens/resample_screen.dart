@@ -96,7 +96,7 @@ class ResampleScreen extends StatelessWidget {
                 }, textColor: Colors.white),
                 const SizedBox(height: 15),
                 _buildCustomButton('Keluar', 'assets/orange_bar.png', () {
-                  context.pop();
+                  context.go('/');
                 }, textColor: Colors.white),
 
                 const SizedBox(height: 40),
