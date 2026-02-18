@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/wfo_provider.dart';
 
 class WfoScreen extends StatefulWidget {
@@ -60,6 +61,11 @@ class _WfoScreenState extends State<WfoScreen> {
               Expanded(
                 child: Consumer<WfoProvider>(
                   builder: (context, provider, child) {
+                    if (provider.status == WfoStatus.redirectToLogin) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        context.pushReplacement('/internal_login');
+                      });
+                    }
                     return Container(
                       margin: const EdgeInsets.all(20),
                       padding: const EdgeInsets.all(20),
@@ -92,7 +98,7 @@ class _WfoScreenState extends State<WfoScreen> {
       case WfoStatus.checkingInfrastructure:
       case WfoStatus.validatingSecurity:
       case WfoStatus.checkingRestrictions:
-      case WfoStatus.processing:
+      case WfoStatus.redirectToLogin:
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -109,7 +115,6 @@ class _WfoScreenState extends State<WfoScreen> {
       case WfoStatus.infrastructureError:
       case WfoStatus.securityError:
       case WfoStatus.restrictionError:
-      case WfoStatus.submissionError:
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -137,42 +142,6 @@ class _WfoScreenState extends State<WfoScreen> {
               ),
               child: const Text(
                 "Coba Lagi",
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-
-      case WfoStatus.success:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.check_circle_outline,
-              color: Colors.green,
-              size: 80,
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              "Berhasil!",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              provider.message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text(
-                "Kembali ke Dashboard",
                 style: TextStyle(color: Colors.white),
               ),
             ),

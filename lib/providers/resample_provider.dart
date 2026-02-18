@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 
 class ResampleProvider extends ChangeNotifier {
+  String? _ceklok;
+  String? _tglKerja;
+
+  String? get ceklok => _ceklok;
+  String? get tglKerja => _tglKerja;
+
+  void setData({String? ceklok, String? tglKerja}) {
+    _ceklok = ceklok;
+    _tglKerja = tglKerja;
+    notifyListeners();
+  }
+
   void onProceed() {
-    // Handle "Lanjut" action
     debugPrint('Proceed clicked');
   }
 
   void onPostpone() {
-    // Handle "Tunda" action
     debugPrint('Postpone clicked');
   }
 }

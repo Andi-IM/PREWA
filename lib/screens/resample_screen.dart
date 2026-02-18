@@ -4,10 +4,19 @@ import 'package:go_router/go_router.dart';
 import '../providers/resample_provider.dart';
 
 class ResampleScreen extends StatelessWidget {
-  const ResampleScreen({super.key});
+  final String? ceklok;
+  final String? tglKerja;
+
+  const ResampleScreen({super.key, this.ceklok, this.tglKerja});
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ResampleProvider>().setData(
+        ceklok: ceklok,
+        tglKerja: tglKerja,
+      );
+    });
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(

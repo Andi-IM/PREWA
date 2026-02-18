@@ -6,10 +6,14 @@ import 'providers/wfo_provider.dart';
 import 'providers/sample_record_provider.dart';
 import 'providers/presensi_provider.dart';
 import 'providers/resample_provider.dart';
+import 'providers/storage_provider.dart';
+import 'services/storage_service.dart';
 
 import 'package:prewa/router/app_router.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await StorageService.instance.initialize();
   runApp(const MyApp());
 }
 
@@ -20,6 +24,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => StorageProvider()),
         ChangeNotifierProvider(create: (_) => HomeProvider()),
         ChangeNotifierProvider(create: (_) => WfoProvider()),
         ChangeNotifierProvider(create: (_) => WfaProvider()),

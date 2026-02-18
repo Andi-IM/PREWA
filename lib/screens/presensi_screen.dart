@@ -4,10 +4,19 @@ import 'package:go_router/go_router.dart';
 import '../providers/presensi_provider.dart';
 
 class PresensiScreen extends StatelessWidget {
-  const PresensiScreen({super.key});
+  final String? ceklok;
+  final String? tglKerja;
+
+  const PresensiScreen({super.key, this.ceklok, this.tglKerja});
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PresensiProvider>().setData(
+        ceklok: ceklok,
+        tglKerja: tglKerja,
+      );
+    });
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(

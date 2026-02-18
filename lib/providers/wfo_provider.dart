@@ -13,15 +13,11 @@ enum WfoStatus {
   securityError,
   checkingRestrictions,
   restrictionError,
-  processing,
-  success,
-  submissionError,
+  redirectToLogin,
 }
 
 class WfoProvider extends ChangeNotifier {
-  // static const String validSsid = 'WiFi@PNP';
   static const String validSsid = 'AINET-5G';
-  static const int maxRetries = 3;
 
   WfoStatus _status = WfoStatus.idle;
   String _message = '';
@@ -41,7 +37,12 @@ class WfoProvider extends ChangeNotifier {
     if (!await _checkWifiConnection()) return;
     if (!await _validateSecurity()) return;
     if (!await _checkWorkingRestrictions()) return;
-    if (!await _processAttendance()) return;
+    _redirectToLogin();
+  }
+
+  void _redirectToLogin() {
+    _setStatus(WfoStatus.redirectToLogin, "Mengarahkan ke halaman login...");
+    notifyListeners();
   }
 
   Future<bool> _checkWifiConnection() async {
@@ -147,25 +148,6 @@ class WfoProvider extends ChangeNotifier {
     return true;
   }
 
-  Future<bool> _processAttendance() async {
-    _setStatus(WfoStatus.processing, "Memproses Data Kehadiran...");
-
-    bool uploadSuccess = await _uploadAttendanceDataWithRetry();
-
-    if (_isDisposed) return false;
-
-    if (uploadSuccess) {
-      _setStatus(WfoStatus.success, "Selamat Datang! Absensi Berhasil.");
-      return true;
-    } else {
-      _setStatus(
-        WfoStatus.submissionError,
-        "Gagal mengirim data. Silakan coba lagi.",
-      );
-      return false;
-    }
-  }
-
   bool _isWithinWorkingHours() {
     final now = DateTime.now();
 
@@ -184,22 +166,6 @@ class WfoProvider extends ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 500));
     if (ip == null) return false;
     return ip.startsWith('192.168.') || ip.startsWith('10.');
-  }
-
-  Future<bool> _uploadAttendanceDataWithRetry() async {
-    int retryCount = 0;
-
-    while (retryCount < maxRetries) {
-      try {
-        await Future.delayed(const Duration(seconds: 1));
-        return true;
-      } catch (e) {
-        retryCount++;
-        if (retryCount >= maxRetries) return false;
-        await Future.delayed(Duration(milliseconds: 500 * retryCount));
-      }
-    }
-    return false;
   }
 
   void _setStatus(WfoStatus status, String message) {

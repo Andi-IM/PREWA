@@ -1,15 +1,137 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../providers/storage_provider.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class InternalLoginScreen extends StatefulWidget {
+  const InternalLoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<InternalLoginScreen> createState() => _InternalLoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _InternalLoginScreenState extends State<InternalLoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCredentials();
+  }
+
+  Future<void> _loadCredentials() async {
+    final storage = context.read<StorageProvider>();
+    if (storage.userId != null) {
+      _usernameController.text = storage.userId!;
+    }
+    if (storage.password != null) {
+      _passwordController.text = storage.password!;
+    }
+  }
+
+  Future<void> _handleLogin() async {
+    final username = _usernameController.text;
+    final password = _passwordController.text;
+
+    if (username.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Username dan Password harus diisi')),
+      );
+      return;
+    }
+
+    try {
+      final storage = context.read<StorageProvider>();
+      debugPrint('=== LOGIN REQUEST ===');
+      debugPrint('URL: https://prewa.pnp.ac.id/login.php');
+      debugPrint('Payload: username=$username&password=****');
+
+      final response = await http.post(
+        Uri.parse('https://prewa.pnp.ac.id/login.php'),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'username=$username&password=$password',
+      );
+
+      debugPrint('Response Status: ${response.statusCode}');
+      debugPrint('Response Body: ${response.body}');
+      debugPrint('====================');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final logData = Map<String, dynamic>.from(data);
+        if (logData.containsKey('token')) {
+          logData['token'] = '****';
+        }
+        debugPrint('Parsed Data: $logData');
+
+        if (data['status'] == 'OK') {
+          await storage.saveCredentials(
+            userId: data['user_id'] ?? username,
+            password: password,
+          );
+          await storage.saveToken(data['token'] ?? '');
+          await storage.saveUserData(
+            namaUser: data['nama_user'] ?? '',
+            sampleId: data['sample_id'] ?? '',
+          );
+
+          if (mounted) {
+            final statusTraining = data['status_training'];
+            final ceklok = data['ceklok'];
+            final tglKerja = data['tgl_kerja'];
+
+            if (statusTraining == 0) {
+              context.go('/sample_record');
+            } else if (statusTraining == 1) {
+              context.go(
+                '/presensi',
+                extra: {'ceklok': ceklok, 'tgl_kerja': tglKerja},
+              );
+            } else {
+              context.go(
+                '/resample',
+                extra: {'ceklok': ceklok, 'tgl_kerja': tglKerja},
+              );
+            }
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Login Gagal.\nPeriksa Username dan Password Anda.',
+                ),
+              ),
+            );
+          }
+        }
+      } else if (response.statusCode == 403) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Maaf,\nAkses Jaringan Invalid')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Maaf,\nKoneksi Server bermasalah.')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('=== LOGIN ERROR ===');
+      debugPrint('Error: $e');
+      debugPrint('===================');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Maaf,\nKoneksi Server bermasalah.')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +193,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             letterSpacing: 4,
                           ),
                         ),
-                        const SizedBox(height: 48),
+                        const SizedBox(height: 16),
+                        const Text(
+                          '(Internal)',
+                          style: TextStyle(
+                            color: Color(0xFF1A237E), // Dark Navy
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
                         // Username Field
                         _buildTextField(
                           label: 'Username',
@@ -93,16 +224,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   _buildCustomButton(
                     text: 'Masuk',
                     assetPath: 'assets/green_bar.png',
-                    onPressed: () {
-                      // Login logic
-                    },
+                    onPressed: _handleLogin,
                   ),
                   const SizedBox(height: 16),
                   _buildCustomButton(
                     text: 'Keluar',
                     assetPath: 'assets/orange_bar.png',
                     onPressed: () {
-                      // Exit logic
+                      context.pop();
                     },
                   ),
                   const SizedBox(height: 40),
@@ -110,9 +239,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text(
                     'Your Bridge to the Future',
                     style: TextStyle(
-                      fontStyle: FontStyle.italic,
-                      color: Colors.black54,
-                      fontSize: 14,
+                      fontFamily: 'Hurricane', // Script font
+                      fontSize: 24,
+                      color: Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 20),

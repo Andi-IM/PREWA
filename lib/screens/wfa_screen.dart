@@ -26,7 +26,7 @@ class _WfaScreenState extends State<WfaScreen> {
     if (success && mounted) {
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
-        context.pushReplacement('/login');
+        context.pushReplacement('/global_login');
       }
     }
   }
