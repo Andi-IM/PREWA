@@ -4,15 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../providers/storage_provider.dart';
+import '../providers/app_config_provider.dart';
+import '../services/api_service.dart';
 
-class GlobalLoginScreen extends StatefulWidget {
-  const GlobalLoginScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<GlobalLoginScreen> createState() => _GlobalLoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _GlobalLoginScreenState extends State<GlobalLoginScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -45,19 +47,22 @@ class _GlobalLoginScreenState extends State<GlobalLoginScreen> {
 
     try {
       final storage = context.read<StorageProvider>();
-      debugPrint('=== LOGIN REQUEST (GLOBAL) ===');
-      debugPrint('URL: https://prewa.pnp.ac.id/login_global.php');
+      final apiService = context.read<ApiService>();
+      final loginUrl = apiService.loginEndpoint;
+
+      debugPrint('=== LOGIN REQUEST ===');
+      debugPrint('URL: $loginUrl');
       debugPrint('Payload: username=$username&password=****');
 
       final response = await http.post(
-        Uri.parse('https://prewa.pnp.ac.id/login_global.php'),
+        Uri.parse(loginUrl),
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: 'username=$username&password=$password',
       );
 
       debugPrint('Response Status: ${response.statusCode}');
       debugPrint('Response Body: ${response.body}');
-      debugPrint('==============================');
+      debugPrint('====================');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -68,27 +73,19 @@ class _GlobalLoginScreenState extends State<GlobalLoginScreen> {
         debugPrint('Parsed Data: $logData');
 
         if (data['status'] == 'OK') {
-          // Save credentials and user data
           // Point 3: Save user_id as username input, password as password input
-          await storage.saveCredentials(
-            userId: username, // User input username
-            password: password, // User input password
-          );
+          await storage.saveCredentials(userId: username, password: password);
           await storage.saveToken(data['token'] ?? '');
           await storage.saveUserData(
             namaUser: data['nama_user'] ?? '',
-            // Ensure sampleId is treated as String
             sampleId: data['sample_id']?.toString() ?? '',
           );
 
           if (mounted) {
-            // Point 4: Check status_training
             final statusTraining = data['status_training'];
             final ceklok = data['ceklok']?.toString();
             final tglKerja = data['tgl_kerja']?.toString();
 
-            // Point 5, 6, 7: Navigation logic
-            // Handle statusTraining as int or String for robustness
             int? statusTrainingInt;
             if (statusTraining is int) {
               statusTrainingInt = statusTraining;
@@ -97,16 +94,13 @@ class _GlobalLoginScreenState extends State<GlobalLoginScreen> {
             }
 
             if (statusTrainingInt == 0) {
-              // Point 5
               context.go('/sample_record');
             } else if (statusTrainingInt == 1) {
-              // Point 6
               context.go(
                 '/presensi',
                 extra: {'ceklok': ceklok, 'tgl_kerja': tglKerja},
               );
             } else {
-              // Point 7 (status_training != 0 && != 1)
               context.go(
                 '/resample',
                 extra: {'ceklok': ceklok, 'tgl_kerja': tglKerja},
@@ -138,9 +132,9 @@ class _GlobalLoginScreenState extends State<GlobalLoginScreen> {
         }
       }
     } catch (e) {
-      debugPrint('=== LOGIN ERROR (GLOBAL) ===');
+      debugPrint('=== LOGIN ERROR ===');
       debugPrint('Error: $e');
-      debugPrint('============================');
+      debugPrint('===================');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Maaf,\nKoneksi Server bermasalah.')),
@@ -151,6 +145,9 @@ class _GlobalLoginScreenState extends State<GlobalLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final config = context.watch<AppConfigProvider>();
+    final modeTitle = config.isWfa ? '(Global)' : '(Internal)';
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -205,9 +202,9 @@ class _GlobalLoginScreenState extends State<GlobalLoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          '(Global)',
-                          style: TextStyle(
+                        Text(
+                          modeTitle,
+                          style: const TextStyle(
                             color: Color(0xFF1A237E),
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

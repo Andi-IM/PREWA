@@ -2,8 +2,7 @@ import 'package:go_router/go_router.dart';
 import '../screens/home_screen.dart';
 import '../screens/wfo_screen.dart';
 import '../screens/wfa_screen.dart';
-import '../screens/internal_login_screen.dart';
-import '../screens/global_login_screen.dart';
+import '../screens/login_screen.dart';
 import '../screens/sample_record_screen.dart';
 import '../screens/presensi_screen.dart';
 import '../screens/resample_screen.dart';
@@ -26,14 +25,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
     GoRoute(path: '/wfo', builder: (context, state) => const WfoScreen()),
     GoRoute(path: '/wfa', builder: (context, state) => const WfaScreen()),
-    GoRoute(
-      path: '/internal_login',
-      builder: (context, state) => const InternalLoginScreen(),
-    ),
-    GoRoute(
-      path: '/global_login',
-      builder: (context, state) => const GlobalLoginScreen(),
-    ),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(
       path: '/sample_record',
       builder: (context, state) => const SampleRecordScreen(),

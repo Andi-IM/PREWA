@@ -7,7 +7,9 @@ import 'providers/sample_record_provider.dart';
 import 'providers/presensi_provider.dart';
 import 'providers/resample_provider.dart';
 import 'providers/storage_provider.dart';
+import 'providers/app_config_provider.dart';
 import 'services/storage_service.dart';
+import 'services/api_service.dart';
 
 import 'package:prewa/router/app_router.dart';
 
@@ -25,6 +27,10 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => StorageProvider()),
+        ChangeNotifierProvider(create: (_) => AppConfigProvider()),
+        ProxyProvider<AppConfigProvider, ApiService>(
+          update: (_, config, __) => ApiService(config),
+        ),
         ChangeNotifierProvider(create: (_) => HomeProvider()),
         ChangeNotifierProvider(create: (_) => WfoProvider()),
         ChangeNotifierProvider(create: (_) => WfaProvider()),

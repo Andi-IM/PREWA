@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/wfo_provider.dart';
+import '../providers/app_config_provider.dart';
+import '../models/app_mode.dart';
 
 class WfoScreen extends StatefulWidget {
   const WfoScreen({super.key});
@@ -63,7 +65,8 @@ class _WfoScreenState extends State<WfoScreen> {
                   builder: (context, provider, child) {
                     if (provider.status == WfoStatus.redirectToLogin) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        context.pushReplacement('/internal_login');
+                        context.read<AppConfigProvider>().setMode(AppMode.wfo);
+                        context.pushReplacement('/login');
                       });
                     }
                     return Container(

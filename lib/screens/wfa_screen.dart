@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/wfa_provider.dart';
+import '../providers/app_config_provider.dart';
+import '../models/app_mode.dart';
 
 class WfaScreen extends StatefulWidget {
   const WfaScreen({super.key});
@@ -26,7 +28,8 @@ class _WfaScreenState extends State<WfaScreen> {
     if (success && mounted) {
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
-        context.pushReplacement('/global_login');
+        context.read<AppConfigProvider>().setMode(AppMode.wfa);
+        context.pushReplacement('/login');
       }
     }
   }
