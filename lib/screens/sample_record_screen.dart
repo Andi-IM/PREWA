@@ -14,15 +14,12 @@ class SampleRecordScreen extends StatefulWidget {
 }
 
 class _SampleRecordScreenState extends State<SampleRecordScreen> {
-  // We use a flag to prevent multiple navigations
-  bool _isNavigatingToCamera = false;
+  bool _isCapturing = false;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    // Reset provider on entry? Or maybe not if we want to resume?
-    // User request implies a fresh start usually.
-    // "Tetapkan variabel..." -> indicates initialization.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final isWfa = context.read<AppConfigProvider>().isWfa;
       context.read<SampleRecordProvider>().init(isWfa);
@@ -33,23 +30,21 @@ class _SampleRecordScreenState extends State<SampleRecordScreen> {
   Widget build(BuildContext context) {
     return Consumer<SampleRecordProvider>(
       builder: (context, provider, child) {
-        // Side Effect Handling (Navigation, Dialogs)
-        // We should do this carefully.
-
         if (provider.status == SampleRecordStatus.readyToCapture &&
-            !_isNavigatingToCamera) {
-          _isNavigatingToCamera = true;
+            !_isCapturing) {
+          _isCapturing = true;
           WidgetsBinding.instance.addPostFrameCallback((_) async {
-            final provider = context.read<SampleRecordProvider>();
-            final XFile? image = await context.push<XFile?>('/camera');
-            _isNavigatingToCamera = false;
+            final recordProvider = context.read<SampleRecordProvider>();
+            final XFile? image = await _picker.pickImage(
+              source: ImageSource.camera,
+              preferredCameraDevice: CameraDevice.front,
+              maxWidth: 600,
+              maxHeight: 600,
+            );
+            _isCapturing = false;
 
             if (image != null && mounted) {
-              provider.processImage(image);
-            } else {
-              // User cancelled capture?
-              // Maybe show error or allow retry?
-              // For now, if they cancel, maybe we just stay here or reset?
+              recordProvider.processImage(image);
             }
           });
         }
@@ -294,7 +289,7 @@ class _SampleRecordScreenState extends State<SampleRecordScreen> {
 
             // Helper for ReadyToCapture just to show a momentary message if needed
             if (provider.status == SampleRecordStatus.readyToCapture &&
-                _isNavigatingToCamera)
+                _isCapturing)
               Container(
                 color: Colors.black54,
                 child: Center(
