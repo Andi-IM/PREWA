@@ -1,7 +1,8 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../providers/sample_record_provider.dart';
 import '../providers/storage_provider.dart';
 import '../providers/app_config_provider.dart';
@@ -13,42 +14,118 @@ class SampleRecordScreen extends StatefulWidget {
   State<SampleRecordScreen> createState() => _SampleRecordScreenState();
 }
 
-class _SampleRecordScreenState extends State<SampleRecordScreen> {
-  bool _isCapturing = false;
-  final ImagePicker _picker = ImagePicker();
+class _SampleRecordScreenState extends State<SampleRecordScreen>
+    with WidgetsBindingObserver {
+  CameraController? _controller;
+  bool _isCameraInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final isWfa = context.read<AppConfigProvider>().isWfa;
       context.read<SampleRecordProvider>().init(isWfa);
+      _initializeCamera();
     });
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = _controller;
+
+    // App state changed before we got the chance to initialize.
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      cameraController.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      _initializeCamera();
+    }
+  }
+
+  Future<void> _initializeCamera() async {
+    var status = await Permission.camera.status;
+    if (status.isDenied) {
+      status = await Permission.camera.request();
+    }
+
+    if (status.isPermanentlyDenied) {
+      if (mounted) {
+        _showPermissionDeniedDialog(context, openSettings: true);
+      }
+      return;
+    }
+
+    if (status.isDenied) {
+      if (mounted) {
+        _showPermissionDeniedDialog(context, openSettings: false);
+      }
+      return;
+    }
+
+    final cameras = await availableCameras();
+    if (cameras.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tidak ada kamera ditemukan')),
+        );
+      }
+      return;
+    }
+
+    final firstCamera = cameras.firstWhere(
+      (camera) => camera.lensDirection == CameraLensDirection.front,
+      orElse: () => cameras.first,
+    );
+
+    _controller = CameraController(
+      firstCamera,
+      ResolutionPreset.medium,
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.jpeg,
+    );
+
+    _controller!
+        .initialize()
+        .then((_) {
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _isCameraInitialized = true;
+          });
+        })
+        .catchError((Object e) {
+          if (e is CameraException) {
+            switch (e.code) {
+              case 'CameraAccessDenied':
+                if (mounted) {
+                  _showPermissionDeniedDialog(context, openSettings: true);
+                }
+                break;
+              default:
+                // Handle other errors here.
+                break;
+            }
+          }
+        });
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SampleRecordProvider>(
       builder: (context, provider, child) {
-        if (provider.status == SampleRecordStatus.readyToCapture &&
-            !_isCapturing) {
-          _isCapturing = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
-            final recordProvider = context.read<SampleRecordProvider>();
-            final XFile? image = await _picker.pickImage(
-              source: ImageSource.camera,
-              preferredCameraDevice: CameraDevice.front,
-              maxWidth: 600,
-              maxHeight: 600,
-            );
-            _isCapturing = false;
-
-            if (image != null && mounted) {
-              recordProvider.processImage(image);
-            }
-          });
-        }
-
+        // Navigation logic based on status
         if (provider.status == SampleRecordStatus.success) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             context.go('/record_success');
@@ -82,118 +159,201 @@ class _SampleRecordScreenState extends State<SampleRecordScreen> {
                           child: IntrinsicHeight(
                             child: Column(
                               children: [
-                                const SizedBox(height: 60),
+                                const SizedBox(height: 40),
 
-                                // Content Area
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20.0,
-                                  ),
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(20),
-                                    decoration: BoxDecoration(
-                                      image: const DecorationImage(
-                                        image: AssetImage(
-                                          'assets/bg_content.png',
+                                // Title Section (Only show when not capturing to save space, or keep it consistent?)
+                                // Keeping consistent for now based on previous layout, maybe smaller?
+                                if (provider.status == SampleRecordStatus.idle)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20.0,
+                                    ),
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        image: const DecorationImage(
+                                          image: AssetImage(
+                                            'assets/bg_content.png',
+                                          ),
+                                          fit: BoxFit.fill,
                                         ),
-                                        fit: BoxFit.fill,
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    constraints: const BoxConstraints(
-                                      minHeight: 300,
-                                    ),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Text(
-                                          'Rekam Data Sampel',
-                                          style: TextStyle(
-                                            fontFamily: 'Acme',
-                                            fontSize: 24,
-                                            color: Color(
-                                              0xFF8B0000,
-                                            ), // Dark Red
-                                            fontWeight: FontWeight.bold,
+                                      constraints: const BoxConstraints(
+                                        minHeight: 200,
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Text(
+                                            'Rekam Data Sampel',
+                                            style: TextStyle(
+                                              fontFamily: 'Acme',
+                                              fontSize: 24,
+                                              color: Color(
+                                                0xFF8B0000,
+                                              ), // Dark Red
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            textAlign: TextAlign.center,
                                           ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        const Text(
-                                          'Presensi Wajah',
-                                          style: TextStyle(
-                                            fontFamily: 'Acme',
-                                            fontSize: 24,
-                                            color: Color(
-                                              0xFF8B0000,
-                                            ), // Dark Red
-                                            fontWeight: FontWeight.bold,
+                                          const SizedBox(height: 20),
+                                          Text(
+                                            'Halo, ${context.watch<StorageProvider>().namaUser ?? 'User'}',
+                                            style: const TextStyle(
+                                              fontFamily: 'Acme',
+                                              fontSize: 20,
+                                              color: Colors.black87,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            textAlign: TextAlign.center,
                                           ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        const SizedBox(height: 60),
-
-                                        Text(
-                                          'Halo, ${context.watch<StorageProvider>().namaUser ?? 'User'}',
-                                          style: const TextStyle(
-                                            fontFamily: 'Acme',
-                                            fontSize: 20,
-                                            color: Colors.black87,
-                                            fontWeight: FontWeight.bold,
+                                          const SizedBox(height: 10),
+                                          const Text(
+                                            'Anda belum merekam\nData Sampel Wajah',
+                                            style: TextStyle(
+                                              fontFamily: 'Acme',
+                                              fontSize: 18,
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            textAlign: TextAlign.center,
                                           ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        const SizedBox(height: 10),
-
-                                        const Text(
-                                          'Anda belum merekam\nData Sampel Wajah',
-                                          style: TextStyle(
-                                            fontFamily: 'Acme',
-                                            fontSize: 18,
-                                            color: Colors.red,
-                                            fontWeight: FontWeight.bold,
+                                          const SizedBox(height: 20),
+                                          const Text(
+                                            'Data Sampel Wajah akan diambil sebanyak 10 kali.\nHarap posisi wajah digerakkan sedikit setiap kali pengambilan.',
+                                            style: TextStyle(
+                                              fontFamily: 'Acme',
+                                              fontSize: 14,
+                                              color: Colors.blue,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            textAlign: TextAlign.center,
                                           ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        const SizedBox(height: 40),
-                                        const Text(
-                                          'Data Sampel Wajah akan diambil sebanyak 10 kali. Harap posisi wajah digerakkan selayang setiap kali pengambilan data.',
-                                          style: TextStyle(
-                                            fontFamily:
-                                                'Acme', // Using consistent font
-                                            fontSize: 14,
-                                            color: Colors.blue,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
 
-                                const SizedBox(height: 80),
+                                // Camera Preview Section
+                                if (provider.status ==
+                                        SampleRecordStatus.readyToCapture ||
+                                    provider.status ==
+                                        SampleRecordStatus.processingImage)
+                                  Expanded(
+                                    child: Center(
+                                      child: Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 20,
+                                        ),
+                                        width: 300,
+                                        height: 300,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 3,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.5,
+                                              ),
+                                              blurRadius: 10,
+                                              spreadRadius: 2,
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          child: _buildCameraPreview(),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
 
-                                // Buttons
-                                _buildCustomButton(
-                                  'Rekam',
-                                  'assets/green_bar.png',
-                                  () {
-                                    context
-                                        .read<SampleRecordProvider>()
-                                        .startRecording();
-                                  },
-                                ),
+                                const SizedBox(height: 20),
+
+                                // Controls
+                                if (provider.status == SampleRecordStatus.idle)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 40.0),
+                                    child: _buildCustomButton(
+                                      'Mulai Rekam',
+                                      'assets/green_bar.png',
+                                      () {
+                                        if (_isCameraInitialized) {
+                                          context
+                                              .read<SampleRecordProvider>()
+                                              .startRecording();
+                                        } else {
+                                          // Try init again if failed or not ready
+                                          _initializeCamera().then((_) {
+                                            if (!mounted || !context.mounted) {
+                                              return;
+                                            }
+                                            if (_isCameraInitialized) {
+                                              context
+                                                  .read<SampleRecordProvider>()
+                                                  .startRecording();
+                                            }
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+
+                                if (provider.status ==
+                                    SampleRecordStatus.readyToCapture)
+                                  Column(
+                                    children: [
+                                      Text(
+                                        provider
+                                            .message, // "Rekam Data Ke-X..."
+                                        style: const TextStyle(
+                                          fontFamily: 'Acme',
+                                          fontSize: 20,
+                                          color: Colors.white,
+                                          shadows: [
+                                            Shadow(
+                                              color: Colors.black,
+                                              blurRadius: 2,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 20),
+                                      _buildCustomButton(
+                                        'Ambil Foto',
+                                        'assets/green_bar.png',
+                                        () async {
+                                          await _takePicture(context);
+                                        },
+                                      ),
+                                    ],
+                                  ),
+
                                 const SizedBox(height: 15),
-                                _buildCustomButton(
-                                  'Keluar',
-                                  'assets/orange_bar.png',
-                                  () {
-                                    context.go('/');
-                                  },
-                                  textColor: Colors.white,
-                                ),
+
+                                // Back/Exit Button (Always show unless uploading/training?)
+                                if (provider.status !=
+                                        SampleRecordStatus.uploading &&
+                                    provider.status !=
+                                        SampleRecordStatus.training)
+                                  _buildCustomButton(
+                                    'Keluar',
+                                    'assets/orange_bar.png',
+                                    () {
+                                      context.go('/');
+                                    },
+                                    textColor: Colors.white,
+                                  ),
 
                                 const Spacer(),
 
@@ -220,12 +380,10 @@ class _SampleRecordScreenState extends State<SampleRecordScreen> {
               ),
             ),
 
-            // Progress Overlay
-            if (provider.status != SampleRecordStatus.idle &&
-                provider.status != SampleRecordStatus.success &&
-                provider.status != SampleRecordStatus.unauthorized &&
-                provider.status != SampleRecordStatus.readyToCapture &&
-                provider.status != SampleRecordStatus.error)
+            // Loading / Progress Overlay
+            if (provider.status == SampleRecordStatus.processingImage ||
+                provider.status == SampleRecordStatus.uploading ||
+                provider.status == SampleRecordStatus.training)
               Container(
                 color: Colors.black54,
                 child: Center(
@@ -242,7 +400,9 @@ class _SampleRecordScreenState extends State<SampleRecordScreen> {
                         const CircularProgressIndicator(),
                         const SizedBox(height: 20),
                         Text(
-                          provider.message,
+                          provider.status == SampleRecordStatus.processingImage
+                              ? "Memproses Foto..."
+                              : provider.message,
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
@@ -252,7 +412,7 @@ class _SampleRecordScreenState extends State<SampleRecordScreen> {
                 ),
               ),
 
-            // Error Overlay (if we want to show it here instead of separate dialog)
+            // Error Overlay
             if (provider.status == SampleRecordStatus.error)
               Container(
                 color: Colors.black54,
@@ -286,31 +446,88 @@ class _SampleRecordScreenState extends State<SampleRecordScreen> {
                   ),
                 ),
               ),
-
-            // Helper for ReadyToCapture just to show a momentary message if needed
-            if (provider.status == SampleRecordStatus.readyToCapture &&
-                _isCapturing)
-              Container(
-                color: Colors.black54,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    margin: const EdgeInsets.symmetric(horizontal: 40),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      provider.message,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildCameraPreview() {
+    if (!_isCameraInitialized || _controller == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return AspectRatio(
+      aspectRatio: 1, // Force square container
+      child: OverflowBox(
+        alignment: Alignment.center,
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: _controller!.value.previewSize!.height,
+            height: _controller!.value.previewSize!.width,
+            child: CameraPreview(_controller!),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _takePicture(BuildContext context) async {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return;
+    }
+
+    if (_controller!.value.isTakingPicture) {
+      // A capture is already pending, do nothing.
+      return;
+    }
+
+    try {
+      final XFile image = await _controller!.takePicture();
+      if (mounted) {
+        if (!context.mounted) return;
+        context.read<SampleRecordProvider>().processImage(image);
+      }
+    } catch (e) {
+      debugPrint('Error capturing image: $e');
+    }
+  }
+
+  void _showPermissionDeniedDialog(
+    BuildContext context, {
+    required bool openSettings,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Izin Kamera Diperlukan"),
+        content: Text(
+          openSettings
+              ? "Aplikasi memerlukan izin kamera untuk merekam data sampel wajah. Mohon izinkan akses kamera di pengaturan."
+              : "Aplikasi memerlukan izin kamera untuk melanjutkan. Mohon izinkan akses kamera.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text("Batal"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (openSettings) {
+                openAppSettings();
+              } else {
+                _initializeCamera();
+              }
+            },
+            child: Text(openSettings ? "Buka Pengaturan" : "Coba Lagi"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -342,7 +559,7 @@ class _SampleRecordScreenState extends State<SampleRecordScreen> {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        width: 250, // Wider buttons as per image
+        width: 250,
         height: 50,
         decoration: BoxDecoration(
           image: DecorationImage(

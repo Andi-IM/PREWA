@@ -18,7 +18,7 @@ enum WfoStatus {
 }
 
 class WfoProvider extends ChangeNotifier {
-  static const String validSsid = 'AINET-5G';
+  static const String validSsid = 'MS@PNP';
 
   WfoStatus _status = WfoStatus.idle;
   String _message = '';
