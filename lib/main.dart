@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
 import 'providers/home_provider.dart';
+import 'providers/wfa_provider.dart';
 import 'providers/wfo_provider.dart';
 
 void main() {
@@ -17,6 +18,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => HomeProvider()),
         ChangeNotifierProvider(create: (_) => WfoProvider()),
+        ChangeNotifierProvider(create: (_) => WfaProvider()),
       ],
       child: MaterialApp(
         title: 'Prewa - Presensi Wajah',
