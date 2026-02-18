@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:prewa/services/crashlytics_service.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -95,7 +96,12 @@ class WfoProvider extends ChangeNotifier {
         return false;
       }
       return true;
-    } catch (e) {
+    } catch (e, st) {
+      CrashlyticsService().recordError(
+        e,
+        st,
+        reason: 'WfoProvider Check Wifi Error',
+      );
       _setStatus(WfoStatus.infrastructureError, "Gagal memverifikasi WiFi: $e");
       return false;
     }
@@ -128,7 +134,12 @@ class WfoProvider extends ChangeNotifier {
         return false;
       }
       return true;
-    } catch (e) {
+    } catch (e, st) {
+      CrashlyticsService().recordError(
+        e,
+        st,
+        reason: 'WfoProvider Validate Security Error',
+      );
       _setStatus(WfoStatus.securityError, "Gagal validasi keamanan: $e");
       return false;
     }

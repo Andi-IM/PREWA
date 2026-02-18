@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:prewa/services/crashlytics_service.dart';
 import '../services/api_service.dart';
 
 enum WfaStatus { initial, loading, success, error }
@@ -73,7 +74,12 @@ class WfaProvider extends ChangeNotifier {
       _message = "Maaf, \nKoneksi Bermasalah";
       _safeNotifyListeners();
       return false;
-    } catch (e) {
+    } catch (e, st) {
+      CrashlyticsService().recordError(
+        e,
+        st,
+        reason: 'WfaProvider Check Connection Error',
+      );
       _status = WfaStatus.error;
       _message = "Maaf, \nKoneksi Bermasalah";
       _safeNotifyListeners();

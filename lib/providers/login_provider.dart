@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:prewa/services/crashlytics_service.dart';
 import 'storage_provider.dart';
 import '../services/api_service.dart';
 import '../models/login_response.dart';
@@ -138,13 +141,28 @@ class LoginProvider extends ChangeNotifier {
         _safeNotifyListeners();
         return LoginResult.error('Maaf,\nKoneksi Server bermasalah.');
       }
-    } catch (e) {
-      debugPrint('=== LOGIN ERROR ===');
+    } on SocketException catch (e) {
+      debugPrint('=== LOGIN SOCKET ERROR ===');
       debugPrint('Error: $e');
-      debugPrint('===================');
+      debugPrint('==========================');
       _status = LoginStatus.error;
       _safeNotifyListeners();
-      return LoginResult.error('Maaf,\nKoneksi Server bermasalah.');
+      return LoginResult.error('Maaf,\nKoneksi internet bermasalah.');
+    } on TimeoutException catch (e) {
+      debugPrint('=== LOGIN TIMEOUT ERROR ===');
+      debugPrint('Error: $e');
+      debugPrint('===========================');
+      _status = LoginStatus.error;
+      _safeNotifyListeners();
+      return LoginResult.error('Maaf,\nWaktu koneksi habis.');
+    } catch (e, st) {
+      debugPrint('=== LOGIN UNKNOWN ERROR ===');
+      debugPrint('Error: $e');
+      debugPrint('===========================');
+      CrashlyticsService().recordError(e, st, reason: 'Login Unknown Error');
+      _status = LoginStatus.error;
+      _safeNotifyListeners();
+      return LoginResult.error('Maaf,\nTerjadi kesalahan internal.');
     }
   }
 
