@@ -110,6 +110,7 @@ class SampleRecordScreen extends StatelessWidget {
                         // Buttons
                         _buildCustomButton('Rekam', 'assets/green_bar.png', () {
                           context.read<SampleRecordProvider>().startRecording();
+                          context.push('/record_success');
                         }),
                         const SizedBox(height: 15),
                         _buildCustomButton(

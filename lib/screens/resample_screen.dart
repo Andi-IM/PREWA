@@ -26,95 +26,118 @@ class ResampleScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                const SizedBox(height: 40),
-
-                // Content Area
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      image: const DecorationImage(
-                        image: AssetImage('assets/bg_content.png'),
-                        fit: BoxFit.fill,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(minHeight: 300),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          'Permintaan Rekam Ulang',
-                          style: TextStyle(
-                            fontFamily: 'Acme',
-                            fontSize: 24,
-                            color: Color(0xFF8B0000), // Dark Red
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(height: 60),
+
+                        // Content Area
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              image: const DecorationImage(
+                                image: AssetImage('assets/bg_content.png'),
+                                fit: BoxFit.fill,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            constraints: const BoxConstraints(minHeight: 300),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'Permintaan Rekam Ulang',
+                                  style: TextStyle(
+                                    fontFamily: 'Acme',
+                                    fontSize: 24,
+                                    color: Color(0xFF8B0000), // Dark Red
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const Text(
+                                  'Sampel Presensi Wajah',
+                                  style: TextStyle(
+                                    fontFamily: 'Acme',
+                                    fontSize: 24,
+                                    color: Color(0xFF8B0000), // Dark Red
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 40),
+                                const Text(
+                                  'Berdasarkan Log Data Presensi ditemukan bahwa tingkat akurasi pencocokan wajah Anda kurang optimal. Anda disarankan melakukan perekaman ulang data sampel.',
+                                  style: TextStyle(
+                                    fontFamily: 'Acme',
+                                    fontSize: 16,
+                                    color: Color(0xFF00008B), // Dark Blue
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
-                          textAlign: TextAlign.center,
                         ),
-                        const Text(
-                          'Sampel Presensi Wajah',
-                          style: TextStyle(
-                            fontFamily: 'Acme',
-                            fontSize: 24,
-                            color: Color(0xFF8B0000), // Dark Red
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
+
+                        const SizedBox(height: 80),
+
+                        // Buttons
+                        _buildCustomButton(
+                          'Lanjut',
+                          'assets/green_bar.png',
+                          () {
+                            context.read<ResampleProvider>().onProceed();
+                          },
                         ),
-                        const SizedBox(height: 40),
-                        const Text(
-                          'Berdasarkan Log Data Presensi ditemukan bahwa tingkat akurasi pencocokan wajah Anda kurang optimal. Anda disarankan melakukan perekaman ulang data sampel.',
-                          style: TextStyle(
-                            fontFamily: 'Acme',
-                            fontSize: 16,
-                            color: Color(0xFF00008B), // Dark Blue
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(height: 15),
+                        _buildCustomButton(
+                          'Tunda',
+                          'assets/yellow_bar.png',
+                          () {
+                            context.read<ResampleProvider>().onPostpone();
+                          },
+                          textColor: Colors.white,
+                        ),
+                        const SizedBox(height: 15),
+                        _buildCustomButton(
+                          'Keluar',
+                          'assets/orange_bar.png',
+                          () {
+                            context.go('/');
+                          },
+                          textColor: Colors.white,
+                        ),
+
+                        const Spacer(),
+
+                        // Footer
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20.0),
+                          child: Text(
+                            'Your Bridge to the Future',
+                            style: TextStyle(
+                              fontFamily: 'Hurricane',
+                              fontSize: 24,
+                              color: Colors.black87,
+                            ),
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 40),
-
-                // Buttons
-                _buildCustomButton('Lanjut', 'assets/green_bar.png', () {
-                  context.read<ResampleProvider>().onProceed();
-                }),
-                const SizedBox(height: 15),
-                _buildCustomButton('Tunda', 'assets/yellow_bar.png', () {
-                  context.read<ResampleProvider>().onPostpone();
-                }, textColor: Colors.white),
-                const SizedBox(height: 15),
-                _buildCustomButton('Keluar', 'assets/orange_bar.png', () {
-                  context.go('/');
-                }, textColor: Colors.white),
-
-                const SizedBox(height: 40),
-
-                // Footer
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 20.0),
-                  child: Text(
-                    'Your Bridge to the Future',
-                    style: TextStyle(
-                      fontFamily: 'Hurricane',
-                      fontSize: 24,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),

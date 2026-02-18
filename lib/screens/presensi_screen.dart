@@ -26,96 +26,113 @@ class PresensiScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                const SizedBox(height: 40),
-
-                // Content Area
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      image: const DecorationImage(
-                        image: AssetImage('assets/bg_content.png'),
-                        fit: BoxFit.fill,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(minHeight: 300),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 20),
-                        const Text(
-                          'Status Presensi',
-                          style: TextStyle(
-                            fontFamily: 'Acme',
-                            fontSize: 24,
-                            color: Color(0xFF8B0000), // Dark Red
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const Text(
-                          'Hari Ini',
-                          style: TextStyle(
-                            fontFamily: 'Acme',
-                            fontSize: 24,
-                            color: Color(0xFF8B0000), // Dark Red
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 40),
-                        // Placeholder for status or dynamic content
-                        Consumer<PresensiProvider>(
-                          builder: (context, provider, child) {
-                            return Text(
-                              provider.statusMessage,
-                              style: const TextStyle(
-                                fontFamily: 'Acme',
-                                fontSize: 18,
-                                color: Colors.black54,
+                        const SizedBox(height: 60),
+
+                        // Content Area
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              image: const DecorationImage(
+                                image: AssetImage('assets/bg_content.png'),
+                                fit: BoxFit.fill,
                               ),
-                            );
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            constraints: const BoxConstraints(minHeight: 300),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'Status Presensi',
+                                  style: TextStyle(
+                                    fontFamily: 'Acme',
+                                    fontSize: 24,
+                                    color: Color(0xFF8B0000), // Dark Red
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const Text(
+                                  'Hari Ini',
+                                  style: TextStyle(
+                                    fontFamily: 'Acme',
+                                    fontSize: 24,
+                                    color: Color(0xFF8B0000), // Dark Red
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 40),
+                                // Placeholder for status or dynamic content
+                                Consumer<PresensiProvider>(
+                                  builder: (context, provider, child) {
+                                    return Text(
+                                      provider.statusMessage,
+                                      style: const TextStyle(
+                                        fontFamily: 'Acme',
+                                        fontSize: 18,
+                                        color: Colors.black54,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 80),
+
+                        // Buttons
+                        _buildCustomButton(
+                          'Ceklok',
+                          'assets/green_bar.png',
+                          () {
+                            context.read<PresensiProvider>().clockIn();
                           },
+                        ),
+                        const SizedBox(height: 15),
+                        _buildCustomButton(
+                          'Keluar',
+                          'assets/orange_bar.png',
+                          () {
+                            context.go('/');
+                          },
+                          textColor: Colors.white,
+                        ),
+
+                        const Spacer(),
+
+                        // Footer
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20.0),
+                          child: Text(
+                            'Your Bridge to the Future',
+                            style: TextStyle(
+                              fontFamily: 'Hurricane',
+                              fontSize: 24,
+                              color: Colors.black87,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 40),
-
-                // Buttons
-                _buildCustomButton('Ceklok', 'assets/green_bar.png', () {
-                  context.read<PresensiProvider>().clockIn();
-                }),
-                const SizedBox(height: 15),
-                // Using orange_bar as per user requested change earlier
-                _buildCustomButton('Keluar', 'assets/orange_bar.png', () {
-                  context.go('/');
-                }, textColor: Colors.white),
-
-                const SizedBox(height: 40),
-
-                // Footer
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 20.0),
-                  child: Text(
-                    'Your Bridge to the Future',
-                    style: TextStyle(
-                      fontFamily: 'Hurricane',
-                      fontSize: 24,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),

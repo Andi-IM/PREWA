@@ -6,6 +6,7 @@ import '../screens/login_screen.dart';
 import '../screens/sample_record_screen.dart';
 import '../screens/presensi_screen.dart';
 import '../screens/resample_screen.dart';
+import '../screens/record_success_screen.dart';
 
 class PresensiExtra {
   final String? ceklok;
@@ -49,6 +50,10 @@ final GoRouter appRouter = GoRouter(
           tglKerja: extra?['tgl_kerja'],
         );
       },
+    ),
+    GoRoute(
+      path: '/record_success',
+      builder: (context, state) => const RecordSuccessScreen(),
     ),
   ],
 );
