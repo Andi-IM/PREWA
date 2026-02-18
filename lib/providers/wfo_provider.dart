@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:network_info_plus/network_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
+import 'dart:io';
 
 enum WfoStatus {
   idle,
@@ -17,7 +19,8 @@ enum WfoStatus {
 }
 
 class WfoProvider extends ChangeNotifier {
-  static const String validSsid = 'WiFi@PNP';
+  // static const String validSsid = 'WiFi@PNP';
+  static const String validSsid = 'AINET-5G';
   static const int maxRetries = 3;
 
   WfoStatus _status = WfoStatus.idle;
@@ -57,6 +60,21 @@ class WfoProvider extends ChangeNotifier {
         return false;
       }
 
+      if (Platform.isAndroid || Platform.isIOS) {
+        var status = await Permission.locationWhenInUse.status;
+        if (!status.isGranted) {
+          status = await Permission.locationWhenInUse.request();
+        }
+
+        if (!status.isGranted) {
+          _setStatus(
+            WfoStatus.infrastructureError,
+            "Izin lokasi diperlukan untuk memverifikasi WiFi.",
+          );
+          return false;
+        }
+      }
+
       final info = NetworkInfo();
       _currentSsid = await info.getWifiName();
 
@@ -92,6 +110,13 @@ class WfoProvider extends ChangeNotifier {
     try {
       final info = NetworkInfo();
       _currentIp = await info.getWifiIP();
+      final gatewayIp = await info.getWifiGatewayIP();
+
+      _setStatus(
+        WfoStatus.validatingSecurity,
+        "IP Device: $_currentIp\nIP AP: $gatewayIp",
+      );
+      await Future.delayed(const Duration(seconds: 1));
 
       bool isValid = await _validateIp(_currentIp);
       if (!isValid) {

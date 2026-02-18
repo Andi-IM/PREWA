@@ -146,7 +146,7 @@ class HomeScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        width: 200,
+        width: 150,
         height: 60,
         decoration: BoxDecoration(
           image: DecorationImage(
