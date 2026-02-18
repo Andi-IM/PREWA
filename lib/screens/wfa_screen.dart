@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/wfa_provider.dart';
-import 'login_screen.dart';
 
 class WfaScreen extends StatefulWidget {
   const WfaScreen({super.key});
@@ -26,10 +26,7 @@ class _WfaScreenState extends State<WfaScreen> {
     if (success && mounted) {
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
+        context.pushReplacement('/login');
       }
     }
   }
@@ -127,10 +124,14 @@ class _WfaScreenState extends State<WfaScreen> {
               // Only show Batal button if there is an issue or loading,
               // but if success we are navigating away.
               // Logic check: "Batal" allows user to exit if stuck.
-              _buildGradientButton(
-                text: 'Batal',
-                colors: [const Color(0xFFD32F2F), const Color(0xFFB71C1C)],
-                onPressed: () => Navigator.pop(context),
+              // Batal Button
+              GestureDetector(
+                onTap: () => context.pop(),
+                child: Image.asset(
+                  'assets/buttonExit.png',
+                  height: 60, // approximate height matching previous button
+                  fit: BoxFit.contain,
+                ),
               ),
 
               const Spacer(),
@@ -148,43 +149,6 @@ class _WfaScreenState extends State<WfaScreen> {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGradientButton({
-    required String text,
-    required List<Color> colors,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      width: 200,
-      height: 50,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: colors,
-        ),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
           ),
         ),
       ),

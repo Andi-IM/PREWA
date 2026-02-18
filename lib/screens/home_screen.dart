@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/home_provider.dart';
-import 'wfo_screen.dart';
-import 'wfa_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -100,17 +99,11 @@ class HomeScreen extends StatelessWidget {
 
               // Buttons
               _buildCustomButton('WFO', 'assets/green_bar.png', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const WfoScreen()),
-                );
+                context.push('/wfo');
               }),
               const SizedBox(height: 15),
               _buildCustomButton('WFA', 'assets/yellow_bar.png', () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const WfaScreen()),
-                );
+                context.push('/wfa');
               }),
               const SizedBox(height: 15),
               _buildCustomButton('Exit', 'assets/orange_bar.png', () {
