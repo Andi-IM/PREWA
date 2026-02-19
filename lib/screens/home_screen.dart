@@ -20,6 +20,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Pre-cache images to reduce jank
+    precacheImage(const AssetImage('assets/bg.png'), context);
+    precacheImage(const AssetImage('assets/logo-pnp.png'), context);
+    precacheImage(const AssetImage('assets/app_title.png'), context);
+    precacheImage(const AssetImage('assets/green_bar.png'), context);
+    precacheImage(const AssetImage('assets/yellow_bar.png'), context);
+    precacheImage(const AssetImage('assets/orange_bar.png'), context);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(

@@ -23,16 +23,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.instance.initialize();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await PerformanceService().initialize();
 
-  // Pass all uncaught "fatal" errors from the framework to Crashlytics
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-
-  // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
   PlatformDispatcher.instance.onError = (error, stack) {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };
+
+  // Defer PerformanceService - non-critical for first frame
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    PerformanceService().initialize();
+  });
 
   runApp(const MyApp());
 }
