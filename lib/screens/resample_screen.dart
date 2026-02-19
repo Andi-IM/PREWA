@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prewa/providers/storage_provider.dart';
 import 'package:provider/provider.dart';
 import '../providers/resample_provider.dart';
 import '../services/analytics_service.dart';
@@ -85,6 +86,27 @@ class _ResampleScreenState extends State<ResampleScreen> {
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
+
+                                // Tambahkan Nama User Disini
+                                Consumer<StorageProvider>(
+                                  builder: (context, storage, child) {
+                                    final namaUser = storage.namaUser;
+                                    if (namaUser != null &&
+                                        namaUser.isNotEmpty) {
+                                      return Text(
+                                        '$namaUser,',
+                                        style: const TextStyle(
+                                          fontFamily: 'Acme',
+                                          fontSize: 18,
+                                          color: Color(0xFF0000FF), // Blue
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
+
                                 const SizedBox(height: 40),
                                 const Text(
                                   'Berdasarkan Log Data Presensi ditemukan bahwa tingkat akurasi pencocokan wajah Anda kurang optimal. Anda disarankan melakukan perekaman ulang data sampel.',
