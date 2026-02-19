@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:async';
 import '../services/api_service.dart';
+import '../services/crashlytics_service.dart';
 
 class HomeProvider extends ChangeNotifier {
   ApiService _api;
@@ -38,8 +39,9 @@ class HomeProvider extends ChangeNotifier {
     try {
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
       _appVersion = 'Versi ${packageInfo.version}';
-    } catch (e) {
+    } catch (e, stack) {
       _appVersion = 'Versi Unknown';
+      CrashlyticsService().recordError(e, stack, reason: 'PackageInfo Error');
     }
     notifyListeners();
 
@@ -71,8 +73,13 @@ class HomeProvider extends ChangeNotifier {
       }
     } on TimeoutException catch (_) {
       _apiMessage = 'Koneksi Server Bermasalah (1103)';
-    } catch (e) {
+    } catch (e, stack) {
       _apiMessage = 'Connection Error: $e';
+      CrashlyticsService().recordError(
+        e,
+        stack,
+        reason: 'Whoami Connection Error',
+      );
     }
 
     notifyListeners();

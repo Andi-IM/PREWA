@@ -9,6 +9,7 @@ import '../providers/storage_provider.dart';
 import '../providers/app_config_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/storage_service.dart';
+import '../services/crashlytics_service.dart';
 
 class SampleRecordScreen extends StatefulWidget {
   const SampleRecordScreen({super.key});
@@ -132,7 +133,12 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
         _isCameraInitialized = true;
         _isCameraInitializing = false;
       });
-    } catch (e) {
+    } catch (e, stack) {
+      CrashlyticsService().recordError(
+        e,
+        stack,
+        reason: 'Camera Initialization Error',
+      );
       if (e is CameraException) {
         switch (e.code) {
           case 'CameraAccessDenied':
@@ -587,8 +593,9 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
         if (!context.mounted) return;
         context.read<SampleRecordProvider>().processImage(image);
       }
-    } catch (e) {
+    } catch (e, stack) {
       debugPrint('Error capturing image: $e');
+      CrashlyticsService().recordError(e, stack, reason: 'Take Picture Error');
     }
   }
 
