@@ -158,7 +158,6 @@ class SampleRecordProvider extends ChangeNotifier {
     final trace = PerformanceService().startTrace('upload_single_image');
     trace.putAttribute('index', '$index');
 
-    final token = _storage.token;
     final sampleId = _storage.sampleId;
 
     final endpoint = _isWfa
@@ -166,21 +165,15 @@ class SampleRecordProvider extends ChangeNotifier {
         : ApiEndpoints.uploadFoto;
     final url = Uri.parse(
       '${ApiConfig.baseUrl}$endpoint'
-      '?token=$token&sample_id=$sampleId&index=$index&orientasi=P',
+      '?sample_id=$sampleId&index=$index&orientasi=P',
     );
 
     try {
-      final request = http.MultipartRequest('POST', url);
-      request.headers.addAll({'X-API-TOKEN': token ?? ''});
+      final bytes = await imageFile.readAsBytes();
 
-      request.files.add(
-        await http.MultipartFile.fromPath('foto', imageFile.path),
-      );
-
-      final streamedResponse = await request.send().timeout(
-        ApiConfig.defaultTimeout,
-      );
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await http
+          .post(url, body: bytes, headers: {'Content-Type': 'image/jpeg'})
+          .timeout(ApiConfig.defaultTimeout);
 
       debugPrint(
         '[UPLOAD] Status: ${response.statusCode}, Body: ${response.body}',
@@ -189,7 +182,7 @@ class SampleRecordProvider extends ChangeNotifier {
       trace.putAttribute('status_code', '${response.statusCode}');
 
       if (response.statusCode == 200) {
-        if (response.body.contains("OK") || response.body.trim() == "1") {
+        if (response.body.trim() == "OK") {
           await PerformanceService().stopTrace(trace);
           return true;
         } else {
@@ -236,18 +229,14 @@ class SampleRecordProvider extends ChangeNotifier {
 
     final trace = PerformanceService().startTrace('face_training');
 
-    final token = _storage.token;
     final sampleId = _storage.sampleId;
     final endpoint = _isWfa
         ? ApiEndpoints.processTrainGlobal
         : ApiEndpoints.processTrain;
-    final url = Uri.parse(
-      '${ApiConfig.baseUrl}$endpoint'
-      '?token=$token&sample_id=$sampleId',
-    );
+    final url = Uri.parse('${ApiConfig.baseUrl}$endpoint?sample_id=$sampleId');
 
     try {
-      final response = await http.get(url).timeout(ApiConfig.defaultTimeout);
+      final response = await http.post(url).timeout(ApiConfig.defaultTimeout);
 
       debugPrint(
         '[TRAIN] Status: ${response.statusCode}, Body: ${response.body}',
@@ -256,7 +245,7 @@ class SampleRecordProvider extends ChangeNotifier {
       trace.putAttribute('status_code', '${response.statusCode}');
 
       if (response.statusCode == 200) {
-        if (response.body.contains("OK")) {
+        if (response.body.trim() == "OK") {
           _status = SampleRecordStatus.success;
           _updateMessage(
             "Anda telah merekam\nData Sampel Wajah\n\nData Sampel Presensi Wajah sudah dikirim dan diproses. Silakan login kembali untuk mengisi presensi Anda. Terima Kasih.",
