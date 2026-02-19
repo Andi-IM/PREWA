@@ -108,6 +108,10 @@ class _ResampleScreenState extends State<ResampleScreen> {
                           'Lanjut',
                           'assets/green_bar.png',
                           () {
+                            AnalyticsService().logEvent(
+                              name: 'button_click',
+                              parameters: {'button': 'resample_lanjut'},
+                            );
                             context.read<ResampleProvider>().onProceed();
                           },
                         ),
@@ -116,6 +120,10 @@ class _ResampleScreenState extends State<ResampleScreen> {
                           'Tunda',
                           'assets/yellow_bar.png',
                           () {
+                            AnalyticsService().logEvent(
+                              name: 'button_click',
+                              parameters: {'button': 'resample_tunda'},
+                            );
                             context.read<ResampleProvider>().onPostpone();
                           },
                           textColor: Colors.white,
@@ -125,6 +133,10 @@ class _ResampleScreenState extends State<ResampleScreen> {
                           'Keluar',
                           'assets/orange_bar.png',
                           () {
+                            AnalyticsService().logEvent(
+                              name: 'button_click',
+                              parameters: {'button': 'resample_keluar'},
+                            );
                             context.go('/');
                           },
                           textColor: Colors.white,

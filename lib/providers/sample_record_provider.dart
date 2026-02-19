@@ -10,6 +10,7 @@ import '../config/api_config.dart';
 import '../services/storage_service.dart';
 import '../services/crashlytics_service.dart';
 import '../services/performance_service.dart';
+import '../services/analytics_service.dart';
 
 enum SampleRecordStatus {
   idle,
@@ -65,6 +66,10 @@ class SampleRecordProvider extends ChangeNotifier {
     reset();
     _status = SampleRecordStatus.readyToCapture;
     _updateMessage("Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples");
+    AnalyticsService().logEvent(
+      name: 'start_face_recording',
+      parameters: {'mode': _isWfa ? 'wfa' : 'wfo'},
+    );
     notifyListeners();
   }
 
@@ -256,12 +261,23 @@ class SampleRecordProvider extends ChangeNotifier {
           _updateMessage(
             "Anda telah merekam\nData Sampel Wajah\n\nData Sampel Presensi Wajah sudah dikirim dan diproses. Silakan login kembali untuk mengisi presensi Anda. Terima Kasih.",
           );
+          AnalyticsService().logEvent(
+            name: 'face_training_completed',
+            parameters: {
+              'success_uploads': _successUploads,
+              'failed_uploads': _failedUploads,
+            },
+          );
         } else {
           _status = SampleRecordStatus.error;
           _updateMessage("Gagal memproses data: ${response.body}");
           CrashlyticsService().recordError(
             "Train 200 not OK: ${response.body}",
             StackTrace.current,
+          );
+          AnalyticsService().logEvent(
+            name: 'face_training_failed',
+            parameters: {'reason': response.body},
           );
         }
       } else if (response.statusCode == 401) {

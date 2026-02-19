@@ -319,12 +319,15 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
                                       'Mulai Rekam',
                                       'assets/green_bar.png',
                                       () {
+                                        AnalyticsService().logEvent(
+                                          name: 'button_click',
+                                          parameters: {'button': 'mulai_rekam'},
+                                        );
                                         if (_isCameraInitialized) {
                                           context
                                               .read<SampleRecordProvider>()
                                               .startRecording();
                                         } else {
-                                          // Try init again if failed or not ready
                                           _initializeCamera().then((_) {
                                             if (!mounted || !context.mounted) {
                                               return;
@@ -364,6 +367,13 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
                                         'Ambil Foto',
                                         'assets/green_bar.png',
                                         () async {
+                                          AnalyticsService().logEvent(
+                                            name: 'take_photo',
+                                            parameters: {
+                                              'index':
+                                                  provider.currentPhotoIndex,
+                                            },
+                                          );
                                           await _takePicture(context);
                                         },
                                       ),
@@ -381,6 +391,14 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
                                     'Keluar',
                                     'assets/orange_bar.png',
                                     () {
+                                      AnalyticsService().logEvent(
+                                        name: 'button_click',
+                                        parameters: {
+                                          'button': 'sample_keluar',
+                                          'photos_taken':
+                                              provider.successUploads,
+                                        },
+                                      );
                                       context.go('/');
                                     },
                                     textColor: Colors.white,

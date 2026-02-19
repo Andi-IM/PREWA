@@ -112,27 +112,50 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // Buttons
                 _buildCustomButton('WFO', 'assets/green_bar.png', () {
+                  AnalyticsService().logEvent(
+                    name: 'button_click',
+                    parameters: {'button': 'wfo'},
+                  );
                   context.push('/wfo');
                 }),
                 const SizedBox(height: 15),
                 _buildCustomButton('WFA', 'assets/yellow_bar.png', () {
+                  AnalyticsService().logEvent(
+                    name: 'button_click',
+                    parameters: {'button': 'wfa'},
+                  );
                   context.push('/wfa');
                 }),
                 const SizedBox(height: 15),
                 _buildCustomButton('Sample', 'assets/green_bar.png', () {
+                  AnalyticsService().logEvent(
+                    name: 'button_click',
+                    parameters: {'button': 'sample'},
+                  );
                   context.push('/sample_record');
                 }),
                 const SizedBox(height: 15),
                 _buildCustomButton('Presensi', 'assets/green_bar.png', () {
+                  AnalyticsService().logEvent(
+                    name: 'button_click',
+                    parameters: {'button': 'presensi'},
+                  );
                   context.push('/presensi');
                 }),
                 const SizedBox(height: 15),
                 _buildCustomButton('Resample', 'assets/green_bar.png', () {
+                  AnalyticsService().logEvent(
+                    name: 'button_click',
+                    parameters: {'button': 'resample'},
+                  );
                   context.push('/resample');
                 }),
                 const SizedBox(height: 15),
                 _buildCustomButton('Exit', 'assets/orange_bar.png', () {
-                  // Exit app
+                  AnalyticsService().logEvent(
+                    name: 'button_click',
+                    parameters: {'button': 'exit'},
+                  );
                 }),
 
                 const SizedBox(height: 40),

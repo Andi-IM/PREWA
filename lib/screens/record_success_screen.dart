@@ -113,14 +113,26 @@ class _RecordSuccessScreenState extends State<RecordSuccessScreen> {
                         context,
                         'Lanjut',
                         'assets/green_bar.png',
-                        () => context.go('/login'),
+                        () {
+                          AnalyticsService().logEvent(
+                            name: 'button_click',
+                            parameters: {'button': 'success_lanjut'},
+                          );
+                          context.go('/login');
+                        },
                       ),
                       const SizedBox(height: 10),
                       _buildButton(
                         context,
                         'Keluar',
                         'assets/orange_bar.png',
-                        () => context.go('/'),
+                        () {
+                          AnalyticsService().logEvent(
+                            name: 'button_click',
+                            parameters: {'button': 'success_keluar'},
+                          );
+                          context.go('/');
+                        },
                       ),
                     ],
                   ),

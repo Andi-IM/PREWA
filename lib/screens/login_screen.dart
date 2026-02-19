@@ -37,6 +37,13 @@ class _LoginScreenState extends State<LoginScreen> {
     final username = _usernameController.text;
     final password = _passwordController.text;
 
+    AnalyticsService().logEvent(
+      name: 'login_attempt',
+      parameters: {
+        'mode': context.read<AppConfigProvider>().isWfa ? 'wfa' : 'wfo',
+      },
+    );
+
     final result = await context.read<LoginProvider>().login(
       username,
       password,
@@ -45,9 +52,16 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.status == LoginStatus.success) {
+      AnalyticsService().logLogin(
+        method: context.read<AppConfigProvider>().isWfa ? 'wfa' : 'wfo',
+      );
       _navigateToTarget(result);
     } else if (result.status == LoginStatus.error &&
         result.errorMessage != null) {
+      AnalyticsService().logEvent(
+        name: 'login_failed',
+        parameters: {'error': result.errorMessage ?? 'unknown'},
+      );
       _showError(result.errorMessage!);
     }
   }
@@ -199,7 +213,15 @@ class _LoginScreenState extends State<LoginScreen> {
         _buildCustomButton(
           text: 'Keluar',
           assetPath: 'assets/orange_bar.png',
-          onPressed: isLoading ? null : () => context.go('/'),
+          onPressed: isLoading
+              ? null
+              : () {
+                  AnalyticsService().logEvent(
+                    name: 'button_click',
+                    parameters: {'button': 'login_keluar'},
+                  );
+                  context.go('/');
+                },
         ),
       ],
     );

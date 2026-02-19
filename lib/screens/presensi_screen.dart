@@ -112,6 +112,10 @@ class _PresensiScreenState extends State<PresensiScreen> {
                           'Ceklok',
                           'assets/green_bar.png',
                           () {
+                            AnalyticsService().logEvent(
+                              name: 'button_click',
+                              parameters: {'button': 'ceklok'},
+                            );
                             context.read<PresensiProvider>().clockIn();
                           },
                         ),
@@ -120,6 +124,10 @@ class _PresensiScreenState extends State<PresensiScreen> {
                           'Keluar',
                           'assets/orange_bar.png',
                           () {
+                            AnalyticsService().logEvent(
+                              name: 'button_click',
+                              parameters: {'button': 'presensi_keluar'},
+                            );
                             context.go('/');
                           },
                           textColor: Colors.white,
