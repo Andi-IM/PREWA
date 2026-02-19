@@ -21,4 +21,7 @@ class ApiEndpoints {
   static const String uploadFotoGlobal = '/upload_foto_global.php';
   static const String processTrain = '/process_train.php';
   static const String processTrainGlobal = '/process_train_global.php';
+
+  // Presensi Endpoints
+  static const String recognizeGlobal = '/recognize_global.php';
 }
