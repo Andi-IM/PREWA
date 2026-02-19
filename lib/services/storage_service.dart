@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -79,5 +81,12 @@ class StorageService {
   // Clear all data
   Future<void> clearAll() async {
     await _box.clear();
+  }
+
+  // Exit app: clear token + kill app
+  Future<void> exitApp() async {
+    await _box.delete(keyToken);
+    SystemNavigator.pop();
+    exit(0);
   }
 }

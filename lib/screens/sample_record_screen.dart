@@ -8,6 +8,7 @@ import '../providers/sample_record_provider.dart';
 import '../providers/storage_provider.dart';
 import '../providers/app_config_provider.dart';
 import '../services/analytics_service.dart';
+import '../services/storage_service.dart';
 
 class SampleRecordScreen extends StatefulWidget {
   const SampleRecordScreen({super.key});
@@ -272,7 +273,9 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
                                 if (provider.status ==
                                         SampleRecordStatus.readyToCapture ||
                                     provider.status ==
-                                        SampleRecordStatus.processingImage)
+                                        SampleRecordStatus.processingImage ||
+                                    provider.status ==
+                                        SampleRecordStatus.uploading)
                                   Expanded(
                                     child: Center(
                                       child: Container(
@@ -344,12 +347,16 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
                                   ),
 
                                 if (provider.status ==
-                                    SampleRecordStatus.readyToCapture)
+                                        SampleRecordStatus.readyToCapture ||
+                                    provider.status ==
+                                        SampleRecordStatus.uploading)
                                   Column(
                                     children: [
                                       Text(
-                                        provider
-                                            .message, // "Rekam Data Ke-X..."
+                                        provider.status ==
+                                                SampleRecordStatus.uploading
+                                            ? "Mengirim ${provider.currentPhotoIndex}/${provider.totalSamples}..."
+                                            : provider.message,
                                         style: const TextStyle(
                                           fontFamily: 'Acme',
                                           fontSize: 20,
@@ -363,20 +370,22 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
                                         ),
                                       ),
                                       const SizedBox(height: 20),
-                                      _buildCustomButton(
-                                        'Ambil Foto',
-                                        'assets/green_bar.png',
-                                        () async {
-                                          AnalyticsService().logEvent(
-                                            name: 'take_photo',
-                                            parameters: {
-                                              'index':
-                                                  provider.currentPhotoIndex,
-                                            },
-                                          );
-                                          await _takePicture(context);
-                                        },
-                                      ),
+                                      if (provider.status ==
+                                          SampleRecordStatus.readyToCapture)
+                                        _buildCustomButton(
+                                          'Ambil Foto',
+                                          'assets/green_bar.png',
+                                          () async {
+                                            AnalyticsService().logEvent(
+                                              name: 'take_photo',
+                                              parameters: {
+                                                'index':
+                                                    provider.currentPhotoIndex,
+                                              },
+                                            );
+                                            await _takePicture(context);
+                                          },
+                                        ),
                                     ],
                                   ),
 
@@ -399,7 +408,7 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
                                               provider.successUploads,
                                         },
                                       );
-                                      context.go('/');
+                                      StorageService.instance.exitApp();
                                     },
                                     textColor: Colors.white,
                                   ),
@@ -429,31 +438,44 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
               ),
             ),
 
-            // Loading / Progress Overlay
+            // Loading / Progress Overlay - compact (only for processing & training)
             if (provider.status == SampleRecordStatus.processingImage ||
-                provider.status == SampleRecordStatus.uploading ||
                 provider.status == SampleRecordStatus.training)
-              Container(
-                color: Colors.black54,
+              Positioned(
+                bottom: 100,
+                left: 0,
+                right: 0,
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.all(20),
-                    margin: const EdgeInsets.symmetric(horizontal: 40),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
                     ),
-                    child: Column(
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 20),
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                         Text(
                           provider.status == SampleRecordStatus.processingImage
-                              ? "Memproses Foto..."
-                              : provider.message,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                              ? "Memproses..."
+                              : "Training...",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
@@ -461,37 +483,64 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
                 ),
               ),
 
-            // Error Overlay
+            // Error Overlay - compact toast style
             if (provider.status == SampleRecordStatus.error)
-              Container(
-                color: Colors.black54,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    margin: const EdgeInsets.symmetric(horizontal: 40),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error, color: Colors.red, size: 50),
-                        const SizedBox(height: 20),
-                        Text(
-                          provider.message,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+              Positioned(
+                bottom: 80,
+                left: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade700,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        provider.message,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: () {
-                            context.read<SampleRecordProvider>().reset();
-                          },
-                          child: const Text("Tutup"),
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TextButton(
+                            onPressed: () => StorageService.instance.exitApp(),
+                            child: const Text(
+                              "Keluar",
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.red.shade700,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            onPressed: () {
+                              context
+                                  .read<SampleRecordProvider>()
+                                  .retryCapture();
+                            },
+                            child: const Text("Coba Lagi"),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),

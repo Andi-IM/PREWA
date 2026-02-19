@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 import '../providers/resample_provider.dart';
 import '../services/analytics_service.dart';
+import '../services/storage_service.dart';
 
 class ResampleScreen extends StatefulWidget {
   final String? ceklok;
@@ -137,7 +137,7 @@ class _ResampleScreenState extends State<ResampleScreen> {
                               name: 'button_click',
                               parameters: {'button': 'resample_keluar'},
                             );
-                            context.go('/');
+                            StorageService.instance.exitApp();
                           },
                           textColor: Colors.white,
                         ),

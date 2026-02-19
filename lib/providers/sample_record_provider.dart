@@ -29,23 +29,17 @@ class SampleRecordProvider extends ChangeNotifier {
   SampleRecordStatus _status = SampleRecordStatus.idle;
   String _message = '';
 
-  // Configuration
   final int _targetSamples = 10;
   bool _isWfa = false;
 
-  // State
-  List<File> _imgList = [];
-  int _currentPhotoIndex = 1; // 1-based index for display
+  int _currentPhotoIndex = 1;
   int _successUploads = 0;
-  int _failedUploads = 0;
 
-  // Getters
   SampleRecordStatus get status => _status;
   String get message => _message;
   int get currentPhotoIndex => _currentPhotoIndex;
   int get totalSamples => _targetSamples;
   int get successUploads => _successUploads;
-  int get failedUploads => _failedUploads;
 
   void init(bool isWfa) {
     _isWfa = isWfa;
@@ -55,10 +49,14 @@ class SampleRecordProvider extends ChangeNotifier {
   void reset() {
     _status = SampleRecordStatus.idle;
     _message = '';
-    _imgList = [];
     _currentPhotoIndex = 1;
     _successUploads = 0;
-    _failedUploads = 0;
+    notifyListeners();
+  }
+
+  void retryCapture() {
+    _status = SampleRecordStatus.readyToCapture;
+    _updateMessage("Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples");
     notifyListeners();
   }
 
@@ -77,87 +75,70 @@ class SampleRecordProvider extends ChangeNotifier {
     _status = SampleRecordStatus.processingImage;
     notifyListeners();
 
-    await PerformanceService().traceAsync('process_image', () async {
-      try {
-        final File file = File(xFile.path);
-        final bytes = await file.readAsBytes();
-        final image = img.decodeImage(bytes);
+    File? processedFile;
 
-        if (image == null) {
-          throw Exception("Failed to decode image");
-        }
+    try {
+      debugPrint(
+        '=== PROCESS IMAGE START [$_currentPhotoIndex/$_targetSamples] ===',
+      );
 
-        final resized = img.copyResize(image, width: 600, height: 600);
+      debugPrint('[1/4] Reading original file: ${xFile.path}');
+      final File file = File(xFile.path);
+      final bytes = await file.readAsBytes();
+      debugPrint('[1/4] Original file size: ${bytes.length} bytes');
 
-        final tempDir = await getTemporaryDirectory();
-        final fileName =
-            'sample_${DateTime.now().millisecondsSinceEpoch}_P.jpg';
-        final targetPath = path.join(tempDir.path, fileName);
-        final targetFile = File(targetPath);
-
-        await targetFile.writeAsBytes(img.encodeJpg(resized, quality: 85));
-
-        _imgList.add(targetFile);
-
-        if (_imgList.length < _targetSamples) {
-          _currentPhotoIndex++;
-          _status = SampleRecordStatus.readyToCapture;
-          _updateMessage(
-            "Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples",
-          );
-        } else {
-          _startUploadProcess();
-        }
-      } catch (e, stack) {
-        CrashlyticsService().recordError(
-          e,
-          stack,
-          reason: 'Image Processing Error',
-        );
-        _status = SampleRecordStatus.error;
-        _updateMessage("Gagal memproses gambar: $e");
+      if (bytes.isEmpty) {
+        throw Exception("File kosong");
       }
-    }, attributes: {'photo_index': '$_currentPhotoIndex'});
-    notifyListeners();
+
+      debugPrint('[2/4] Decoding image...');
+      final image = img.decodeImage(bytes);
+
+      if (image == null) {
+        debugPrint('[2/4] ERROR: Failed to decode image');
+        throw Exception("Gagal decode gambar");
+      }
+      debugPrint('[2/4] Image decoded: ${image.width}x${image.height}');
+
+      debugPrint('[3/4] Resizing image to 600x600...');
+      final resized = img.copyResize(image, width: 600, height: 600);
+      debugPrint('[3/4] Image resized: ${resized.width}x${resized.height}');
+
+      debugPrint('[4/4] Encoding JPEG (quality: 85)...');
+      final encodedBytes = img.encodeJpg(resized, quality: 85);
+      debugPrint('[4/4] Encoded size: ${encodedBytes.length} bytes');
+
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'sample_${DateTime.now().millisecondsSinceEpoch}_P.jpg';
+      final targetPath = path.join(tempDir.path, fileName);
+      processedFile = File(targetPath);
+      await processedFile.writeAsBytes(encodedBytes);
+
+      debugPrint('=== PROCESS IMAGE COMPLETE. Starting upload... ===');
+
+      await _uploadSingleImage(processedFile);
+    } catch (e, stack) {
+      debugPrint('=== PROCESS IMAGE ERROR: $e ===');
+      CrashlyticsService().recordError(
+        e,
+        stack,
+        reason: 'Image Processing Error',
+      );
+      _status = SampleRecordStatus.error;
+      _updateMessage("Gagal memproses gambar: $e");
+      notifyListeners();
+    }
   }
 
-  Future<void> _startUploadProcess() async {
+  Future<void> _uploadSingleImage(File imageFile) async {
     _status = SampleRecordStatus.uploading;
+    _updateMessage("Mengirim Data Ke-$_currentPhotoIndex Dari $_targetSamples");
+    notifyListeners();
 
-    // We iterate
-    for (int i = 0; i < _imgList.length; i++) {
-      int displayNum = i + 1;
-      _updateMessage("Kirim Data Ke-$displayNum Dari $_targetSamples");
-      notifyListeners();
-
-      bool success = await _uploadSingleImage(_imgList[i], i);
-      if (success) {
-        _successUploads++;
-      } else {
-        _failedUploads++;
-        // Start immediate error check? User said: "Jika kode response mengembalikan 401..."
-        // My _uploadSingleImage should handle that.
-        if (_status == SampleRecordStatus.unauthorized) return;
-      }
-    }
-
-    // Finished uploads
-    if (_successUploads >= _targetSamples) {
-      _startTrainingProcess();
-    } else {
-      // Some failed
-      _status =
-          SampleRecordStatus.error; // Or a specific 'partial_success' state?
-      // User said: "Jika ada yang gagal; hitung errUpload... Tampilkan pesan Ada X data gagal simpan. Coba lagi..."
-      _updateMessage("Ada $_failedUploads data gagal simpan.\nCoba lagi...");
-      notifyListeners();
-    }
-  }
-
-  Future<bool> _uploadSingleImage(File imageFile, int index) async {
     final trace = PerformanceService().startTrace('upload_single_image');
-    trace.putAttribute('index', '$index');
+    trace.putAttribute('index', '$_currentPhotoIndex');
 
+    final token = _storage.token;
     final sampleId = _storage.sampleId;
 
     final endpoint = _isWfa
@@ -165,34 +146,77 @@ class SampleRecordProvider extends ChangeNotifier {
         : ApiEndpoints.uploadFoto;
     final url = Uri.parse(
       '${ApiConfig.baseUrl}$endpoint'
-      '?sample_id=$sampleId&index=$index&orientasi=P',
+      '?token=$token&sample_id=$sampleId&index=$_currentPhotoIndex&orientasi=P',
     );
 
     try {
       final bytes = await imageFile.readAsBytes();
 
+      debugPrint(
+        '=== UPLOAD REQUEST [$_currentPhotoIndex/$_targetSamples] ===',
+      );
+      debugPrint('Method: POST');
+      debugPrint('URL: $url');
+      debugPrint(
+        'Headers: {Content-Type: image/jpeg, X-API-TOKEN: ${token?.substring(0, 8)}...}',
+      );
+      debugPrint('Body: ${bytes.length} bytes (image/jpeg)');
+
       final response = await http
-          .post(url, body: bytes, headers: {'Content-Type': 'image/jpeg'})
+          .post(
+            url,
+            body: bytes,
+            headers: {'Content-Type': 'image/jpeg', 'X-API-TOKEN': token ?? ''},
+          )
           .timeout(ApiConfig.defaultTimeout);
 
       debugPrint(
         '[UPLOAD] Status: ${response.statusCode}, Body: ${response.body}',
       );
+      debugPrint('=== UPLOAD RESPONSE END ===');
 
       trace.putAttribute('status_code', '${response.statusCode}');
 
       if (response.statusCode == 200) {
-        if (response.body.trim() == "OK") {
+        final body = response.body.trim();
+        if (body == "OK") {
+          debugPrint('[UPLOAD] Success: Foto lolos validasi');
           await PerformanceService().stopTrace(trace);
-          return true;
+
+          _successUploads++;
+
+          if (_currentPhotoIndex >= _targetSamples) {
+            debugPrint('=== ALL PHOTOS UPLOADED. Starting training... ===');
+            await _startTrainingProcess();
+          } else {
+            _currentPhotoIndex++;
+            _status = SampleRecordStatus.readyToCapture;
+            _updateMessage(
+              "Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples",
+            );
+            debugPrint(
+              '=== Ready for next capture [$_currentPhotoIndex/$_targetSamples] ===',
+            );
+          }
+          notifyListeners();
         } else {
-          CrashlyticsService().recordError(
-            "Upload 200 but not OK: ${response.body}",
-            StackTrace.current,
-            reason: 'Upload Logic Error',
-          );
+          final nextIndex = int.tryParse(body);
+          if (nextIndex != null) {
+            debugPrint(
+              '[UPLOAD] Failed: Foto tidak lolos validasi. Next index: $nextIndex',
+            );
+            _currentPhotoIndex = nextIndex;
+            _status = SampleRecordStatus.readyToCapture;
+            _updateMessage(
+              "Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples",
+            );
+          } else {
+            debugPrint('[UPLOAD] Failed: Unknown response: $body');
+            _status = SampleRecordStatus.error;
+            _updateMessage("Respons tidak dikenal. Coba lagi.");
+          }
+          notifyListeners();
           await PerformanceService().stopTrace(trace);
-          return false;
         }
       } else if (response.statusCode == 401) {
         if (response.body.contains("NO_LOGIN")) {
@@ -200,26 +224,36 @@ class SampleRecordProvider extends ChangeNotifier {
           _updateMessage("Sesi Habis. Login Ulang.");
           notifyListeners();
           await PerformanceService().stopTrace(trace);
-          return false;
+        } else {
+          _handleUploadError(response, trace);
         }
+      } else {
+        _handleUploadError(response, trace);
       }
-
-      CrashlyticsService().recordError(
-        "Upload Failed: ${response.statusCode} ${response.body}",
-        StackTrace.current,
-        reason: 'Backend Error',
-      );
-      await PerformanceService().stopTrace(trace);
-      return false;
     } catch (e, stack) {
+      debugPrint('=== UPLOAD ERROR: $e ===');
       CrashlyticsService().recordError(
         e,
         stack,
         reason: 'Upload Connection Error',
       );
+      _status = SampleRecordStatus.error;
+      _updateMessage("Koneksi terganggu. Coba lagi.");
+      notifyListeners();
       await PerformanceService().stopTrace(trace);
-      return false;
     }
+  }
+
+  void _handleUploadError(http.Response response, dynamic trace) {
+    CrashlyticsService().recordError(
+      "Upload Failed: ${response.statusCode} ${response.body}",
+      StackTrace.current,
+      reason: 'Backend Error',
+    );
+    _status = SampleRecordStatus.error;
+    _updateMessage("Gagal mengirim foto. Coba lagi.");
+    notifyListeners();
+    PerformanceService().stopTrace(trace);
   }
 
   Future<void> _startTrainingProcess() async {
@@ -229,18 +263,29 @@ class SampleRecordProvider extends ChangeNotifier {
 
     final trace = PerformanceService().startTrace('face_training');
 
+    final token = _storage.token;
     final sampleId = _storage.sampleId;
     final endpoint = _isWfa
         ? ApiEndpoints.processTrainGlobal
         : ApiEndpoints.processTrain;
-    final url = Uri.parse('${ApiConfig.baseUrl}$endpoint?sample_id=$sampleId');
+    final url = Uri.parse(
+      '${ApiConfig.baseUrl}$endpoint?token=$token&sample_id=$sampleId',
+    );
 
     try {
-      final response = await http.post(url).timeout(ApiConfig.defaultTimeout);
+      debugPrint('=== TRAIN REQUEST ===');
+      debugPrint('Method: POST');
+      debugPrint('URL: $url');
+      debugPrint('Headers: {X-API-TOKEN: ${token?.substring(0, 8)}...}');
+
+      final response = await http
+          .post(url, headers: {'X-API-TOKEN': token ?? ''})
+          .timeout(ApiConfig.defaultTimeout);
 
       debugPrint(
         '[TRAIN] Status: ${response.statusCode}, Body: ${response.body}',
       );
+      debugPrint('=== TRAIN RESPONSE END ===');
 
       trace.putAttribute('status_code', '${response.statusCode}');
 
@@ -252,10 +297,7 @@ class SampleRecordProvider extends ChangeNotifier {
           );
           AnalyticsService().logEvent(
             name: 'face_training_completed',
-            parameters: {
-              'success_uploads': _successUploads,
-              'failed_uploads': _failedUploads,
-            },
+            parameters: {'success_uploads': _successUploads},
           );
         } else {
           _status = SampleRecordStatus.error;
@@ -274,10 +316,10 @@ class SampleRecordProvider extends ChangeNotifier {
           _status = SampleRecordStatus.unauthorized;
           _updateMessage("Sesi Habis. Login Ulang.");
         } else {
-          _handleGenericError(response);
+          _handleTrainError(response);
         }
       } else {
-        _handleGenericError(response);
+        _handleTrainError(response);
       }
     } catch (e, stack) {
       _status = SampleRecordStatus.error;
@@ -293,7 +335,7 @@ class SampleRecordProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _handleGenericError(http.Response response) {
+  void _handleTrainError(http.Response response) {
     _status = SampleRecordStatus.error;
     _updateMessage("Koneksi server terganggu.");
     CrashlyticsService().recordError(
@@ -304,6 +346,5 @@ class SampleRecordProvider extends ChangeNotifier {
 
   void _updateMessage(String msg) {
     _message = msg;
-    // We don't notify here because logic usually does it after
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/analytics_service.dart';
+import '../services/storage_service.dart';
 
 class RecordSuccessScreen extends StatefulWidget {
   const RecordSuccessScreen({super.key});
@@ -131,7 +132,7 @@ class _RecordSuccessScreenState extends State<RecordSuccessScreen> {
                             name: 'button_click',
                             parameters: {'button': 'success_keluar'},
                           );
-                          context.go('/');
+                          StorageService.instance.exitApp();
                         },
                       ),
                     ],

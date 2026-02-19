@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/login_provider.dart';
 import '../providers/app_config_provider.dart';
 import '../services/analytics_service.dart';
+import '../services/storage_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -220,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     name: 'button_click',
                     parameters: {'button': 'login_keluar'},
                   );
-                  context.go('/');
+                  StorageService.instance.exitApp();
                 },
         ),
       ],

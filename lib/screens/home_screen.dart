@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/home_provider.dart';
 import '../services/analytics_service.dart';
+import '../services/storage_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -127,36 +128,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   context.push('/wfa');
                 }),
                 const SizedBox(height: 15),
-                _buildCustomButton('Sample', 'assets/green_bar.png', () {
-                  AnalyticsService().logEvent(
-                    name: 'button_click',
-                    parameters: {'button': 'sample'},
-                  );
-                  context.push('/sample_record');
-                }),
-                const SizedBox(height: 15),
-                _buildCustomButton('Presensi', 'assets/green_bar.png', () {
-                  AnalyticsService().logEvent(
-                    name: 'button_click',
-                    parameters: {'button': 'presensi'},
-                  );
-                  context.push('/presensi');
-                }),
-                const SizedBox(height: 15),
-                _buildCustomButton('Resample', 'assets/green_bar.png', () {
-                  AnalyticsService().logEvent(
-                    name: 'button_click',
-                    parameters: {'button': 'resample'},
-                  );
-                  context.push('/resample');
-                }),
-                const SizedBox(height: 15),
                 _buildCustomButton('Exit', 'assets/orange_bar.png', () {
                   AnalyticsService().logEvent(
                     name: 'button_click',
                     parameters: {'button': 'exit'},
                   );
+                  StorageService.instance.exitApp();
                 }),
+
+                const SizedBox(height: 20),
+
+                // UI Preview Button
+                TextButton(
+                  onPressed: () => _showUiPreviewDialog(context),
+                  child: const Text(
+                    'UI Preview',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 12,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
 
                 const SizedBox(height: 40),
 
@@ -223,6 +216,49 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               )
             : null,
+      ),
+    );
+  }
+
+  void _showUiPreviewDialog(BuildContext context) {
+    final screens = [
+      {'name': 'Home', 'path': '/ui/home'},
+      {'name': 'WFO', 'path': '/ui/wfo'},
+      {'name': 'WFA', 'path': '/ui/wfa'},
+      {'name': 'Login', 'path': '/ui/login'},
+      {'name': 'Sample Record', 'path': '/ui/sample_record'},
+      {'name': 'Presensi', 'path': '/ui/presensi'},
+      {'name': 'Resample', 'path': '/ui/resample'},
+      {'name': 'Record Success', 'path': '/ui/record_success'},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('UI Preview'),
+        content: SizedBox(
+          width: double.minPositive,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: screens.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: Text(screens[index]['name']!),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push(screens[index]['path']!);
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup'),
+          ),
+        ],
       ),
     );
   }

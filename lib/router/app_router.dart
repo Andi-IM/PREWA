@@ -57,5 +57,28 @@ final GoRouter appRouter = GoRouter(
       path: '/record_success',
       builder: (context, state) => const RecordSuccessScreen(),
     ),
+    GoRoute(path: '/ui/home', builder: (context, state) => const HomeScreen()),
+    GoRoute(path: '/ui/wfo', builder: (context, state) => const WfoScreen()),
+    GoRoute(path: '/ui/wfa', builder: (context, state) => const WfaScreen()),
+    GoRoute(
+      path: '/ui/login',
+      builder: (context, state) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: '/ui/sample_record',
+      builder: (context, state) => const SampleRecordScreen(),
+    ),
+    GoRoute(
+      path: '/ui/presensi',
+      builder: (context, state) => const PresensiScreen(),
+    ),
+    GoRoute(
+      path: '/ui/resample',
+      builder: (context, state) => const ResampleScreen(),
+    ),
+    GoRoute(
+      path: '/ui/record_success',
+      builder: (context, state) => const RecordSuccessScreen(),
+    ),
   ],
 );

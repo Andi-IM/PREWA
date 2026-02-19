@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/wfa_provider.dart';
 import '../providers/app_config_provider.dart';
 import '../services/analytics_service.dart';
+import '../services/storage_service.dart';
 
 class WfaScreen extends StatefulWidget {
   const WfaScreen({super.key});
@@ -132,7 +133,7 @@ class _WfaScreenState extends State<WfaScreen> {
               // Logic check: "Batal" allows user to exit if stuck.
               // Batal Button
               GestureDetector(
-                onTap: () => context.pop(),
+                onTap: () => StorageService.instance.exitApp(),
                 child: Image.asset(
                   'assets/buttonExit.png',
                   height: 60, // approximate height matching previous button
