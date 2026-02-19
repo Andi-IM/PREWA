@@ -4,6 +4,7 @@ import '../config/api_config.dart';
 import '../providers/app_config_provider.dart';
 import '../models/login_response.dart';
 import '../models/ping_response.dart';
+import 'performance_service.dart';
 
 class ApiResponse {
   final int statusCode;
@@ -36,7 +37,16 @@ class ApiService {
 
   Map<String, String> get _defaultHeaders => ApiConfig.defaultHeaders;
 
-  Future<ApiResponse> _handleRequest(Future<http.Response> request) async {
+  Future<ApiResponse> _handleRequest(
+    Future<http.Response> request,
+    String endpoint,
+    String method,
+  ) async {
+    final metric = PerformanceService().startHttpMetric(
+      '$_baseUrl$endpoint',
+      method,
+    );
+
     try {
       final response = await request;
       Map<String, dynamic>? data;
@@ -47,12 +57,19 @@ class ApiService {
         } catch (_) {}
       }
 
+      await PerformanceService().stopHttpMetric(
+        metric,
+        responseCode: response.statusCode,
+        responsePayloadSize: response.contentLength,
+      );
+
       return ApiResponse(
         statusCode: response.statusCode,
         body: response.body,
         data: data,
       );
     } catch (e) {
+      await metric.stop();
       rethrow;
     }
   }
@@ -61,7 +78,7 @@ class ApiService {
     final request = http
         .get(_buildUri(endpoint), headers: _defaultHeaders)
         .timeout(timeout ?? ApiConfig.defaultTimeout);
-    return _handleRequest(request);
+    return _handleRequest(request, endpoint, 'GET');
   }
 
   Future<ApiResponse> post(
@@ -72,7 +89,7 @@ class ApiService {
     final request = http
         .post(_buildUri(endpoint), headers: _defaultHeaders, body: body)
         .timeout(timeout ?? ApiConfig.defaultTimeout);
-    return _handleRequest(request);
+    return _handleRequest(request, endpoint, 'POST');
   }
 
   Future<ApiResponse> postUrlEncoded(
@@ -84,7 +101,7 @@ class ApiService {
     final request = http
         .post(uri, headers: _defaultHeaders, body: body)
         .timeout(timeout ?? ApiConfig.defaultTimeout);
-    return _handleRequest(request);
+    return _handleRequest(request, endpoint, 'POST');
   }
 
   String get loginEndpoint {

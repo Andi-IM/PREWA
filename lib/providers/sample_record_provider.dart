@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 import '../config/api_config.dart';
 import '../services/storage_service.dart';
 import '../services/crashlytics_service.dart';
+import '../services/performance_service.dart';
 
 enum SampleRecordStatus {
   idle,
@@ -71,50 +72,47 @@ class SampleRecordProvider extends ChangeNotifier {
     _status = SampleRecordStatus.processingImage;
     notifyListeners();
 
-    try {
-      final File file = File(xFile.path);
-      final bytes = await file.readAsBytes();
-      final image = img.decodeImage(bytes);
+    await PerformanceService().traceAsync('process_image', () async {
+      try {
+        final File file = File(xFile.path);
+        final bytes = await file.readAsBytes();
+        final image = img.decodeImage(bytes);
 
-      if (image == null) {
-        throw Exception("Failed to decode image");
-      }
+        if (image == null) {
+          throw Exception("Failed to decode image");
+        }
 
-      // Determine orientation
-      String orientation = image.width > image.height ? "L" : "P";
+        final resized = img.copyResize(image, width: 600, height: 600);
 
-      // Resize to 600x600
-      final resized = img.copyResize(image, width: 600, height: 600);
+        final tempDir = await getTemporaryDirectory();
+        final fileName =
+            'sample_${DateTime.now().millisecondsSinceEpoch}_P.jpg';
+        final targetPath = path.join(tempDir.path, fileName);
+        final targetFile = File(targetPath);
 
-      // Save to temp file
-      final tempDir = await getTemporaryDirectory();
-      final fileName =
-          'sample_${DateTime.now().millisecondsSinceEpoch}_$orientation.jpg'; // Encoded orientation in filename for simplicity or store separately
-      final targetPath = path.join(tempDir.path, fileName);
-      final targetFile = File(targetPath);
+        await targetFile.writeAsBytes(img.encodeJpg(resized, quality: 85));
 
-      await targetFile.writeAsBytes(img.encodeJpg(resized, quality: 85));
+        _imgList.add(targetFile);
 
-      _imgList.add(targetFile);
-
-      if (_imgList.length < _targetSamples) {
-        _currentPhotoIndex++;
-        _status = SampleRecordStatus.readyToCapture;
-        _updateMessage(
-          "Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples",
+        if (_imgList.length < _targetSamples) {
+          _currentPhotoIndex++;
+          _status = SampleRecordStatus.readyToCapture;
+          _updateMessage(
+            "Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples",
+          );
+        } else {
+          _startUploadProcess();
+        }
+      } catch (e, stack) {
+        CrashlyticsService().recordError(
+          e,
+          stack,
+          reason: 'Image Processing Error',
         );
-      } else {
-        _startUploadProcess();
+        _status = SampleRecordStatus.error;
+        _updateMessage("Gagal memproses gambar: $e");
       }
-    } catch (e, stack) {
-      CrashlyticsService().recordError(
-        e,
-        stack,
-        reason: 'Image Processing Error',
-      );
-      _status = SampleRecordStatus.error;
-      _updateMessage("Gagal memproses gambar: $e");
-    }
+    }, attributes: {'photo_index': '$_currentPhotoIndex'});
     notifyListeners();
   }
 
@@ -152,27 +150,23 @@ class SampleRecordProvider extends ChangeNotifier {
   }
 
   Future<bool> _uploadSingleImage(File imageFile, int index) async {
+    final trace = PerformanceService().startTrace('upload_single_image');
+    trace.putAttribute('index', '$index');
+
     final token = _storage.token;
     final sampleId = _storage.sampleId;
-
-    // orientation was encoded in filename? Or we should have stored it?
-    // The filename I made: sample_..._P.jpg
-    String orientation = "P";
-    if (imageFile.path.contains("_L.jpg")) orientation = "L";
 
     final endpoint = _isWfa
         ? ApiEndpoints.uploadFotoGlobal
         : ApiEndpoints.uploadFoto;
     final url = Uri.parse(
       '${ApiConfig.baseUrl}$endpoint'
-      '?token=$token&sample_id=$sampleId&index=$index&orientasi=$orientation',
+      '?token=$token&sample_id=$sampleId&index=$index&orientasi=P',
     );
 
     try {
       final request = http.MultipartRequest('POST', url);
-      request.headers.addAll({
-        'X-API-TOKEN': token ?? '',
-      }); // Prompt says: "Gunakan Header X-API-TOKEN"
+      request.headers.addAll({'X-API-TOKEN': token ?? ''});
 
       request.files.add(
         await http.MultipartFile.fromPath('foto', imageFile.path),
@@ -183,16 +177,23 @@ class SampleRecordProvider extends ChangeNotifier {
       );
       final response = await http.Response.fromStream(streamedResponse);
 
+      debugPrint(
+        '[UPLOAD] Status: ${response.statusCode}, Body: ${response.body}',
+      );
+
+      trace.putAttribute('status_code', '${response.statusCode}');
+
       if (response.statusCode == 200) {
-        if (response.body.contains("OK")) {
+        if (response.body.contains("OK") || response.body.trim() == "1") {
+          await PerformanceService().stopTrace(trace);
           return true;
         } else {
-          // Unknown body but 200?
           CrashlyticsService().recordError(
             "Upload 200 but not OK: ${response.body}",
             StackTrace.current,
             reason: 'Upload Logic Error',
           );
+          await PerformanceService().stopTrace(trace);
           return false;
         }
       } else if (response.statusCode == 401) {
@@ -200,27 +201,25 @@ class SampleRecordProvider extends ChangeNotifier {
           _status = SampleRecordStatus.unauthorized;
           _updateMessage("Sesi Habis. Login Ulang.");
           notifyListeners();
+          await PerformanceService().stopTrace(trace);
           return false;
         }
       }
 
-      // Log other errors
       CrashlyticsService().recordError(
         "Upload Failed: ${response.statusCode} ${response.body}",
         StackTrace.current,
         reason: 'Backend Error',
       );
+      await PerformanceService().stopTrace(trace);
       return false;
     } catch (e, stack) {
-      // Connection error / RTO
       CrashlyticsService().recordError(
         e,
         stack,
         reason: 'Upload Connection Error',
       );
-      // Do not fail the whole process immediately?
-      // User says: "Jika server mengembalikan error yang tak dikenali, maka tampilkan pesan Koneksi server terganggu."
-      // But this is inside a loop.
+      await PerformanceService().stopTrace(trace);
       return false;
     }
   }
@@ -229,6 +228,8 @@ class SampleRecordProvider extends ChangeNotifier {
     _status = SampleRecordStatus.training;
     _updateMessage("Memproses Data...");
     notifyListeners();
+
+    final trace = PerformanceService().startTrace('face_training');
 
     final token = _storage.token;
     final sampleId = _storage.sampleId;
@@ -242,6 +243,12 @@ class SampleRecordProvider extends ChangeNotifier {
 
     try {
       final response = await http.get(url).timeout(ApiConfig.defaultTimeout);
+
+      debugPrint(
+        '[TRAIN] Status: ${response.statusCode}, Body: ${response.body}',
+      );
+
+      trace.putAttribute('status_code', '${response.statusCode}');
 
       if (response.statusCode == 200) {
         if (response.body.contains("OK")) {
@@ -275,6 +282,8 @@ class SampleRecordProvider extends ChangeNotifier {
         stack,
         reason: 'Training Connection Error',
       );
+    } finally {
+      await PerformanceService().stopTrace(trace);
     }
     notifyListeners();
   }

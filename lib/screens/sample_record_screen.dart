@@ -1,11 +1,13 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../providers/sample_record_provider.dart';
 import '../providers/storage_provider.dart';
 import '../providers/app_config_provider.dart';
+import '../services/analytics_service.dart';
 
 class SampleRecordScreen extends StatefulWidget {
   const SampleRecordScreen({super.key});
@@ -19,9 +21,12 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
   CameraController? _controller;
   bool _isCameraInitialized = false;
 
+  bool _isCameraInitializing = false;
+
   @override
   void initState() {
     super.initState();
+    AnalyticsService().logScreenView(screenName: 'sample_record');
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final isWfa = context.read<AppConfigProvider>().isWfa;
@@ -32,8 +37,8 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
 
   @override
   void dispose() {
-    _controller?.dispose();
     WidgetsBinding.instance.removeObserver(this);
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -47,13 +52,18 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
     }
 
     if (state == AppLifecycleState.inactive) {
+      // Free up memory when camera not active
       cameraController.dispose();
     } else if (state == AppLifecycleState.resumed) {
+      // Reinitialize the camera with safety checks
       _initializeCamera();
     }
   }
 
   Future<void> _initializeCamera() async {
+    if (_isCameraInitializing) return;
+    _isCameraInitializing = true;
+
     var status = await Permission.camera.status;
     if (status.isDenied) {
       status = await Permission.camera.request();
@@ -62,6 +72,9 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
     if (status.isPermanentlyDenied) {
       if (mounted) {
         _showPermissionDeniedDialog(context, openSettings: true);
+        setState(() {
+          _isCameraInitializing = false;
+        });
       }
       return;
     }
@@ -69,6 +82,9 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
     if (status.isDenied) {
       if (mounted) {
         _showPermissionDeniedDialog(context, openSettings: false);
+        setState(() {
+          _isCameraInitializing = false;
+        });
       }
       return;
     }
@@ -79,6 +95,9 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Tidak ada kamera ditemukan')),
         );
+        setState(() {
+          _isCameraInitializing = false;
+        });
       }
       return;
     }
@@ -88,37 +107,49 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
       orElse: () => cameras.first,
     );
 
-    _controller = CameraController(
+    // If there is an existing controller, dispose it first
+    if (_controller != null) {
+      await _controller!.dispose();
+    }
+
+    // Create a new controller
+    final newController = CameraController(
       firstCamera,
       ResolutionPreset.medium,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.jpeg,
     );
 
-    _controller!
-        .initialize()
-        .then((_) {
-          if (!mounted) {
-            return;
-          }
-          setState(() {
-            _isCameraInitialized = true;
-          });
-        })
-        .catchError((Object e) {
-          if (e is CameraException) {
-            switch (e.code) {
-              case 'CameraAccessDenied':
-                if (mounted) {
-                  _showPermissionDeniedDialog(context, openSettings: true);
-                }
-                break;
-              default:
-                // Handle other errors here.
-                break;
+    try {
+      await newController.initialize();
+      await newController.lockCaptureOrientation(DeviceOrientation.portraitUp);
+
+      if (!mounted) return;
+
+      setState(() {
+        _controller = newController;
+        _isCameraInitialized = true;
+        _isCameraInitializing = false;
+      });
+    } catch (e) {
+      if (e is CameraException) {
+        switch (e.code) {
+          case 'CameraAccessDenied':
+            if (mounted) {
+              _showPermissionDeniedDialog(context, openSettings: true);
             }
-          }
+            break;
+          default:
+            debugPrint('Camera Error: ${e.code} ${e.description}');
+            break;
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _isCameraInitializing = false;
         });
+      }
+    }
   }
 
   @override

@@ -49,6 +49,8 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   firebase_core: ^4.4.0
   firebase_crashlytics: ^5.0.7
+  firebase_analytics: ^12.1.0
+  firebase_performance: ^0.11.0+7
   flutter_native_splash: 2.4.7
   image: ^4.8.0
   camera: ^0.11.4
@@ -68,11 +70,17 @@ flutter_launcher_icons:
 flutter_native_splash:
   color: "#ffffff"
   color_dark: "#000000"
-  image: "assets/icon-pnp-g.png"
-  image_dark: "assets/icon-pnp-g.png"
+  image: assets/icon-pnp-g.png
+  image_dark: assets/icon-pnp-g.png
   android: true
   ios: false
   fullscreen: true
+
+  android_12:
+    image: assets/icon-pnp-g.png
+    icon_background_color: "#ffffff"
+    image_dark: assets/icon-pnp-g.png
+    icon_background_color_dark: "#000000"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

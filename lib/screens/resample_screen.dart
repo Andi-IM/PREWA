@@ -2,19 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/resample_provider.dart';
+import '../services/analytics_service.dart';
 
-class ResampleScreen extends StatelessWidget {
+class ResampleScreen extends StatefulWidget {
   final String? ceklok;
   final String? tglKerja;
 
   const ResampleScreen({super.key, this.ceklok, this.tglKerja});
 
   @override
+  State<ResampleScreen> createState() => _ResampleScreenState();
+}
+
+class _ResampleScreenState extends State<ResampleScreen> {
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService().logScreenView(screenName: 'resample');
+  }
+
+  @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ResampleProvider>().setData(
-        ceklok: ceklok,
-        tglKerja: tglKerja,
+        ceklok: widget.ceklok,
+        tglKerja: widget.tglKerja,
       );
     });
     return Scaffold(

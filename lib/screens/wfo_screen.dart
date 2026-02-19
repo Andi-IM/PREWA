@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/wfo_provider.dart';
 import '../providers/app_config_provider.dart';
+import '../services/analytics_service.dart';
 
 class WfoScreen extends StatefulWidget {
   const WfoScreen({super.key});
@@ -15,6 +16,7 @@ class _WfoScreenState extends State<WfoScreen> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService().logScreenView(screenName: 'wfo');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppConfigProvider>().setWfa(false);
       context.read<WfoProvider>().startWfoProcess();

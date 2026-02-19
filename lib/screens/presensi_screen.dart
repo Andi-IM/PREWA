@@ -2,19 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/presensi_provider.dart';
+import '../services/analytics_service.dart';
 
-class PresensiScreen extends StatelessWidget {
+class PresensiScreen extends StatefulWidget {
   final String? ceklok;
   final String? tglKerja;
 
   const PresensiScreen({super.key, this.ceklok, this.tglKerja});
 
   @override
+  State<PresensiScreen> createState() => _PresensiScreenState();
+}
+
+class _PresensiScreenState extends State<PresensiScreen> {
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService().logScreenView(screenName: 'presensi');
+  }
+
+  @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PresensiProvider>().setData(
-        ceklok: ceklok,
-        tglKerja: tglKerja,
+        ceklok: widget.ceklok,
+        tglKerja: widget.tglKerja,
       );
     });
     return Scaffold(

@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../services/analytics_service.dart';
 
-class RecordSuccessScreen extends StatelessWidget {
+class RecordSuccessScreen extends StatefulWidget {
   const RecordSuccessScreen({super.key});
+
+  @override
+  State<RecordSuccessScreen> createState() => _RecordSuccessScreenState();
+}
+
+class _RecordSuccessScreenState extends State<RecordSuccessScreen> {
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService().logScreenView(screenName: 'record_success');
+  }
 
   @override
   Widget build(BuildContext context) {

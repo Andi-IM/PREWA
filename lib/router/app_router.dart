@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import '../screens/home_screen.dart';
 import '../screens/wfo_screen.dart';
 import '../screens/wfa_screen.dart';
@@ -22,6 +23,7 @@ class ResampleExtra {
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
+  observers: [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)],
   routes: [
     GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
     GoRoute(path: '/wfo', builder: (context, state) => const WfoScreen()),

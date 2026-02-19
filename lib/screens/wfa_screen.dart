@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/wfa_provider.dart';
 import '../providers/app_config_provider.dart';
+import '../services/analytics_service.dart';
 
 class WfaScreen extends StatefulWidget {
   const WfaScreen({super.key});
@@ -15,6 +16,7 @@ class _WfaScreenState extends State<WfaScreen> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService().logScreenView(screenName: 'wfa');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkConnection();
     });
