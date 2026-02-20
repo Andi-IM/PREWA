@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/home_provider.dart';
@@ -150,18 +151,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 20),
 
-                // UI Preview Button
-                TextButton(
-                  onPressed: () => _showUiPreviewDialog(context),
-                  child: const Text(
-                    'UI Preview',
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontSize: 12,
-                      decoration: TextDecoration.underline,
+                // UI Preview Button (hide in release mode)
+                if (!kReleaseMode)
+                  TextButton(
+                    onPressed: () => _showUiPreviewDialog(context),
+                    child: const Text(
+                      'UI Preview',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
                   ),
-                ),
 
                 const SizedBox(height: 40),
 

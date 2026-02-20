@@ -355,26 +355,43 @@ class _SampleRecordScreenState extends State<SampleRecordScreen>
                                 if (provider.status ==
                                         SampleRecordStatus.readyToCapture ||
                                     provider.status ==
-                                        SampleRecordStatus.uploading)
+                                        SampleRecordStatus.uploading ||
+                                    provider.status ==
+                                        SampleRecordStatus.training)
                                   Column(
                                     children: [
                                       Text(
                                         provider.status ==
                                                 SampleRecordStatus.uploading
-                                            ? "Mengirim ${provider.currentPhotoIndex}/${provider.totalSamples}..."
+                                            ? "Mengirim ${provider.currentUploadIndex}/${provider.totalSamples}..."
+                                            : provider.status ==
+                                                  SampleRecordStatus.training
+                                            ? "Melakukan training..."
                                             : provider.message,
                                         style: const TextStyle(
                                           fontFamily: 'Acme',
                                           fontSize: 20,
-                                          color: Colors.white,
-                                          shadows: [
-                                            Shadow(
-                                              color: Colors.black,
-                                              blurRadius: 2,
-                                            ),
-                                          ],
+                                          color: Colors.black87,
+                                          backgroundColor: Colors.white70,
                                         ),
                                       ),
+                                      if (provider.status ==
+                                              SampleRecordStatus.uploading ||
+                                          provider.status ==
+                                              SampleRecordStatus.training)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 10,
+                                          ),
+                                          child: SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                        ),
                                       const SizedBox(height: 20),
                                       if (provider.status ==
                                           SampleRecordStatus.readyToCapture)

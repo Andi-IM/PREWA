@@ -33,11 +33,14 @@ class SampleRecordProvider extends ChangeNotifier {
   bool _isWfa = false;
 
   int _currentPhotoIndex = 1;
+  int _currentUploadIndex = 1;
   int _successUploads = 0;
+  final List<File?> _capturedPhotos = List.filled(10, null, growable: false);
 
   SampleRecordStatus get status => _status;
   String get message => _message;
   int get currentPhotoIndex => _currentPhotoIndex;
+  int get currentUploadIndex => _currentUploadIndex;
   int get totalSamples => _targetSamples;
   int get successUploads => _successUploads;
 
@@ -50,7 +53,19 @@ class SampleRecordProvider extends ChangeNotifier {
     _status = SampleRecordStatus.idle;
     _message = '';
     _currentPhotoIndex = 1;
+    _currentUploadIndex = 1;
     _successUploads = 0;
+    for (int i = 0; i < _capturedPhotos.length; i++) {
+      if (_capturedPhotos[i] != null) {
+        try {
+          final file = _capturedPhotos[i]!;
+          if (file.existsSync()) {
+            file.deleteSync();
+          }
+        } catch (_) {}
+      }
+      _capturedPhotos[i] = null;
+    }
     notifyListeners();
   }
 
@@ -109,14 +124,31 @@ class SampleRecordProvider extends ChangeNotifier {
       debugPrint('[4/4] Encoded size: ${encodedBytes.length} bytes');
 
       final tempDir = await getTemporaryDirectory();
-      final fileName = 'sample_${DateTime.now().millisecondsSinceEpoch}_P.jpg';
+      final fileName = 'sample_${_currentPhotoIndex}_P.jpg';
       final targetPath = path.join(tempDir.path, fileName);
       processedFile = File(targetPath);
       await processedFile.writeAsBytes(encodedBytes);
 
-      debugPrint('=== PROCESS IMAGE COMPLETE. Starting upload... ===');
+      _capturedPhotos[_currentPhotoIndex - 1] = processedFile;
 
-      await _uploadSingleImage(processedFile);
+      debugPrint(
+        '=== PROCESS IMAGE COMPLETE [$_currentPhotoIndex/$_targetSamples] ===',
+      );
+
+      if (_currentPhotoIndex >= _targetSamples) {
+        debugPrint('=== ALL PHOTOS CAPTURED. Starting batch upload... ===');
+        await _uploadAllPhotos();
+      } else {
+        _currentPhotoIndex++;
+        _status = SampleRecordStatus.readyToCapture;
+        _updateMessage(
+          "Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples",
+        );
+        debugPrint(
+          '=== Ready for next capture [$_currentPhotoIndex/$_targetSamples] ===',
+        );
+      }
+      notifyListeners();
     } catch (e, stack) {
       debugPrint('=== PROCESS IMAGE ERROR: $e ===');
       CrashlyticsService().recordError(
@@ -130,13 +162,12 @@ class SampleRecordProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _uploadSingleImage(File imageFile) async {
+  Future<void> _uploadAllPhotos() async {
     _status = SampleRecordStatus.uploading;
-    _updateMessage("Mengirim Data Ke-$_currentPhotoIndex Dari $_targetSamples");
+    _updateMessage("Mengirim Data...");
     notifyListeners();
 
-    final trace = PerformanceService().startTrace('upload_single_image');
-    trace.putAttribute('index', '$_currentPhotoIndex');
+    final trace = PerformanceService().startTrace('upload_all_photos');
 
     final token = _storage.token;
     final sampleId = _storage.sampleId;
@@ -144,104 +175,144 @@ class SampleRecordProvider extends ChangeNotifier {
     final endpoint = _isWfa
         ? ApiEndpoints.uploadFotoGlobal
         : ApiEndpoints.uploadFoto;
-    final url = Uri.parse(
-      '${ApiConfig.baseUrl}$endpoint'
-      '?token=$token&sample_id=$sampleId&index=$_currentPhotoIndex&orientasi=P',
-    );
 
-    try {
-      final bytes = await imageFile.readAsBytes();
+    int startIndex = 1;
+    _successUploads = 0;
 
-      debugPrint(
-        '=== UPLOAD REQUEST [$_currentPhotoIndex/$_targetSamples] ===',
+    while (startIndex <= _targetSamples) {
+      _currentUploadIndex = startIndex;
+      _updateMessage("Mengirim $startIndex/$_targetSamples...");
+      notifyListeners();
+
+      if (startIndex <= _successUploads) {
+        debugPrint('[UPLOAD] Photo $startIndex already uploaded, skipping');
+        startIndex++;
+        continue;
+      }
+
+      final imageFile = _capturedPhotos[startIndex - 1];
+      if (imageFile == null || !await imageFile.exists()) {
+        debugPrint('[UPLOAD] Photo $startIndex not found, need to recapture');
+        _currentPhotoIndex = startIndex;
+        _status = SampleRecordStatus.readyToCapture;
+        _updateMessage(
+          "Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples",
+        );
+        notifyListeners();
+        await PerformanceService().stopTrace(trace);
+        return;
+      }
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}$endpoint'
+        '?token=$token&sample_id=$sampleId&index=$startIndex&orientasi=P',
       );
-      debugPrint('Method: POST');
-      debugPrint('URL: $url');
-      debugPrint(
-        'Headers: {Content-Type: image/jpeg, X-API-TOKEN: ${token?.substring(0, 8)}...}',
-      );
-      debugPrint('Body: ${bytes.length} bytes (image/jpeg)');
 
-      final response = await http
-          .post(
-            url,
-            body: bytes,
-            headers: {'Content-Type': 'image/jpeg', 'X-API-TOKEN': token ?? ''},
-          )
-          .timeout(ApiConfig.defaultTimeout);
+      try {
+        final bytes = await imageFile.readAsBytes();
 
-      debugPrint(
-        '[UPLOAD] Status: ${response.statusCode}, Body: ${response.body}',
-      );
-      debugPrint('=== UPLOAD RESPONSE END ===');
+        debugPrint('=== UPLOAD REQUEST [$startIndex/$_targetSamples] ===');
+        debugPrint('Method: POST');
+        debugPrint('URL: $url');
+        debugPrint(
+          'Headers: {Content-Type: image/jpeg, X-API-TOKEN: ${token?.substring(0, 8)}...}',
+        );
+        debugPrint('Body: ${bytes.length} bytes (image/jpeg)');
 
-      trace.putAttribute('status_code', '${response.statusCode}');
+        final response = await http
+            .post(
+              url,
+              body: bytes,
+              headers: {
+                'Content-Type': 'image/jpeg',
+                'X-API-TOKEN': token ?? '',
+              },
+            )
+            .timeout(ApiConfig.defaultTimeout);
 
-      if (response.statusCode == 200) {
-        final body = response.body.trim();
-        if (body == "OK") {
-          debugPrint('[UPLOAD] Success: Foto lolos validasi');
-          await PerformanceService().stopTrace(trace);
+        debugPrint(
+          '[UPLOAD] Status: ${response.statusCode}, Body: ${response.body}',
+        );
+        debugPrint('=== UPLOAD RESPONSE END ===');
 
-          _successUploads++;
+        trace.putAttribute('status_code', '${response.statusCode}');
 
-          if (_currentPhotoIndex >= _targetSamples) {
-            debugPrint('=== ALL PHOTOS UPLOADED. Starting training... ===');
-            await _startTrainingProcess();
+        if (response.statusCode == 200) {
+          final body = response.body.trim();
+          if (body == "OK") {
+            debugPrint('[UPLOAD] Success: Foto $startIndex lolos validasi');
+            _successUploads++;
+            startIndex++;
           } else {
-            _currentPhotoIndex++;
-            _status = SampleRecordStatus.readyToCapture;
-            _updateMessage(
-              "Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples",
-            );
-            debugPrint(
-              '=== Ready for next capture [$_currentPhotoIndex/$_targetSamples] ===',
-            );
+            final existingIndex = int.tryParse(body);
+            if (existingIndex != null) {
+              debugPrint(
+                '[UPLOAD] Server says photos 1-$existingIndex already exist. Skipping to $existingIndex + 1',
+              );
+              _successUploads = existingIndex;
+              startIndex = existingIndex + 1;
+              _updateMessage("Mengirim Data Dari Ke-$startIndex...");
+              notifyListeners();
+            } else {
+              debugPrint('[UPLOAD] Failed: Unknown response: $body');
+              _status = SampleRecordStatus.error;
+              _updateMessage("Respons tidak dikenal. Coba lagi.");
+              notifyListeners();
+              await PerformanceService().stopTrace(trace);
+              return;
+            }
           }
-          notifyListeners();
-        } else {
-          final nextIndex = int.tryParse(body);
-          if (nextIndex != null) {
-            debugPrint(
-              '[UPLOAD] Failed: Foto tidak lolos validasi. Next index: $nextIndex',
-            );
-            _currentPhotoIndex = nextIndex;
-            _status = SampleRecordStatus.readyToCapture;
-            _updateMessage(
-              "Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples",
-            );
+        } else if (response.statusCode == 401) {
+          if (response.body.contains("NO_LOGIN")) {
+            _status = SampleRecordStatus.unauthorized;
+            _updateMessage("Sesi Habis. Login Ulang.");
+            notifyListeners();
+            await PerformanceService().stopTrace(trace);
+            return;
           } else {
-            debugPrint('[UPLOAD] Failed: Unknown response: $body');
-            _status = SampleRecordStatus.error;
-            _updateMessage("Respons tidak dikenal. Coba lagi.");
+            _handleUploadError(response, trace);
+            return;
           }
-          notifyListeners();
-          await PerformanceService().stopTrace(trace);
-        }
-      } else if (response.statusCode == 401) {
-        if (response.body.contains("NO_LOGIN")) {
-          _status = SampleRecordStatus.unauthorized;
-          _updateMessage("Sesi Habis. Login Ulang.");
-          notifyListeners();
-          await PerformanceService().stopTrace(trace);
         } else {
           _handleUploadError(response, trace);
+          return;
         }
-      } else {
-        _handleUploadError(response, trace);
+      } catch (e, stack) {
+        debugPrint('=== UPLOAD ERROR: $e ===');
+        CrashlyticsService().recordError(
+          e,
+          stack,
+          reason: 'Upload Connection Error',
+        );
+        _status = SampleRecordStatus.error;
+        _updateMessage("Koneksi terganggu. Coba lagi.");
+        notifyListeners();
+        await PerformanceService().stopTrace(trace);
+        return;
       }
-    } catch (e, stack) {
-      debugPrint('=== UPLOAD ERROR: $e ===');
-      CrashlyticsService().recordError(
-        e,
-        stack,
-        reason: 'Upload Connection Error',
+    }
+
+    debugPrint(
+      '=== ALL PHOTOS PROCESSED. Success: $_successUploads/$_targetSamples ===',
+    );
+
+    if (_successUploads < _targetSamples) {
+      debugPrint(
+        '[UPLOAD] Not all photos validated. Need to recapture remaining.',
       );
-      _status = SampleRecordStatus.error;
-      _updateMessage("Koneksi terganggu. Coba lagi.");
+      _currentPhotoIndex = _successUploads + 1;
+      _status = SampleRecordStatus.readyToCapture;
+      _updateMessage(
+        "Gagal Validasi. Rekam Data Ke-$_currentPhotoIndex Dari $_targetSamples",
+      );
       notifyListeners();
       await PerformanceService().stopTrace(trace);
+      return;
     }
+
+    debugPrint('=== ALL PHOTOS UPLOADED. Starting training... ===');
+    await PerformanceService().stopTrace(trace);
+    await _startTrainingProcess();
   }
 
   void _handleUploadError(http.Response response, dynamic trace) {
